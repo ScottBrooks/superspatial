@@ -1,0 +1,16 @@
+{
+	"workerType": "Server",
+	"layer": "position",
+	"permissions": {
+		"entity_creation": {
+			"allow": true
+		},
+		"entity_deletion": {
+			"allow": true
+		},
+		"entity_query": {
+			"allow": true
+		}
+	},
+	"launchConfiguration": {}
+}
