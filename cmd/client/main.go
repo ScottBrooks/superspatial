@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"log"
+	"os"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -32,7 +33,7 @@ func mustLoadSprite(sprite string) *common.Texture {
 	return tex
 }
 
-func (*MainMenuScene) Setup(u engo.Updater) {
+func (mm *MainMenuScene) Setup(u engo.Updater) {
 	w, _ := u.(*ecs.World)
 
 	engo.Input.RegisterButton("Up", engo.KeyArrowUp)
@@ -86,7 +87,8 @@ func (*MainMenuScene) Setup(u engo.Updater) {
 	rs.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, &exitBut.SpaceComponent)
 
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
-		log.Printf("START")
+		ss.Reset()
+		mm.ConnectToSpatial()
 	})
 	ss.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, func() {
 		engo.Exit()
@@ -109,6 +111,10 @@ func (*MainMenuScene) Preload() {
 
 func (*MainMenuScene) Type() string { return "Game" }
 
+func (*MainMenuScene) ConnectToSpatial() {
+	log.Printf("Connecting to spatial")
+}
+
 type selectable struct {
 	*ecs.BasicEntity
 	*common.RenderComponent
@@ -120,6 +126,11 @@ type SelectionSystem struct {
 }
 
 func (*SelectionSystem) Remove(ecs.BasicEntity) {}
+
+func (ss *SelectionSystem) Reset() {
+	ss.selectables = []selectable{}
+	ss.current = 0
+}
 
 func (ss *SelectionSystem) Update(dt float32) {
 	ss.selectables[ss.current].RenderComponent.Color = color.RGBA{255, 255, 255, 255}
@@ -150,12 +161,23 @@ func (ss *SelectionSystem) Add(e *ecs.BasicEntity, rc *common.RenderComponent, e
 }
 
 func main() {
+	var useGraphics bool
+	displayEnv := os.Getenv("DISPLAY")
+	if displayEnv != "" {
+		useGraphics = true
+	}
+
 	opts := engo.RunOptions{
 		Title:          "SuperSpatial",
 		Width:          worldWidth,
 		Height:         worldHeight,
 		StandardInputs: true,
+		HeadlessMode:   !useGraphics,
 	}
 
-	engo.Run(opts, &MainMenuScene{})
+	if useGraphics {
+		engo.Run(opts, &MainMenuScene{})
+	} else {
+		engo.Run(opts, &ClientGameScene{})
+	}
 }
