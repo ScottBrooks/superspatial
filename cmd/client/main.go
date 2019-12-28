@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/ScottBrooks/superspatial"
+
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
 	"github.com/EngoEngine/engo/common"
@@ -45,7 +47,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	common.SetBackground(color.White)
 	rs := common.RenderSystem{}
 
-	ss := SelectionSystem{}
+	ss := superspatial.SelectionSystem{}
 	w.AddSystem(&rs)
 	w.AddSystem(&ss)
 
@@ -62,6 +64,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 		RenderComponent: common.RenderComponent{
 			Drawable: mustLoadSprite("UI/Main_Menu/Start_BTN.png"),
 			Scale:    engo.Point{1, 1},
+			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{
 			Position: engo.Point{250, 100},
@@ -74,6 +77,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 		RenderComponent: common.RenderComponent{
 			Drawable: mustLoadSprite("UI/Main_Menu/Exit_BTN.png"),
 			Scale:    engo.Point{1, 1},
+			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{
 			Position: engo.Point{250, 221},
@@ -88,6 +92,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
 		ss.Reset()
+		engo.SetSceneByName("Game", false)
 		mm.ConnectToSpatial()
 	})
 	ss.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, func() {
@@ -109,55 +114,10 @@ func (*MainMenuScene) Preload() {
 	}
 }
 
-func (*MainMenuScene) Type() string { return "Game" }
+func (*MainMenuScene) Type() string { return "Menu" }
 
 func (*MainMenuScene) ConnectToSpatial() {
 	log.Printf("Connecting to spatial")
-}
-
-type selectable struct {
-	*ecs.BasicEntity
-	*common.RenderComponent
-	exec func()
-}
-type SelectionSystem struct {
-	selectables []selectable
-	current     int
-}
-
-func (*SelectionSystem) Remove(ecs.BasicEntity) {}
-
-func (ss *SelectionSystem) Reset() {
-	ss.selectables = []selectable{}
-	ss.current = 0
-}
-
-func (ss *SelectionSystem) Update(dt float32) {
-	ss.selectables[ss.current].RenderComponent.Color = color.RGBA{255, 255, 255, 255}
-	if engo.Input.Button("Up").JustReleased() {
-		log.Printf("Pressed up")
-		ss.current--
-	}
-	if engo.Input.Button("Down").JustReleased() {
-		log.Printf("Pressed down")
-		ss.current++
-	}
-	if engo.Input.Button("Enter").JustReleased() {
-		ss.selectables[ss.current].exec()
-	}
-	if ss.current < 0 {
-		ss.current = len(ss.selectables) - 1
-	}
-	if ss.current >= len(ss.selectables) {
-		ss.current = 0
-	}
-	ss.selectables[ss.current].RenderComponent.Color = color.RGBA{255, 0, 0, 255}
-
-}
-
-func (ss *SelectionSystem) Add(e *ecs.BasicEntity, rc *common.RenderComponent, exec func()) {
-	ss.selectables = append(ss.selectables, selectable{e, rc, exec})
-
 }
 
 func main() {
@@ -174,6 +134,7 @@ func main() {
 		StandardInputs: true,
 		HeadlessMode:   !useGraphics,
 	}
+	engo.RegisterScene(&ClientGameScene{})
 
 	if useGraphics {
 		engo.Run(opts, &MainMenuScene{})
