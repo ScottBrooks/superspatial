@@ -1,0 +1,57 @@
+	{
+		"__entity_id": "1", 
+		"superspatial.Game": {}, 
+		"improbable.Position": {
+			"coords": {
+				"x": 0,
+				"y": 0,
+				"z" : 1
+			}
+		},
+		"improbable.EntityAcl": {
+			"component_write_acl": [
+				{
+					"key": 54,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["position"]
+							}
+						]
+					}
+				},
+				{
+					"key": 50,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["position"]
+							}
+						]
+					}
+				},
+				{
+					"key": 1002,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["position"]
+							}
+						]
+					}
+				}
+			],
+			"read_acl": {
+				"attribute_set": [
+					{
+						"attribute": ["position"]
+					}
+				]
+			}
+
+		},
+		"improbable.Persistence": {},
+		"improbable.Metadata": {
+			"entity_type": "Game Tracker"
+		}
+	}

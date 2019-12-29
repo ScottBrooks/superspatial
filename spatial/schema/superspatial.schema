@@ -21,3 +21,8 @@ component Bullet {
 	list<float> pos = 3;
 	list<float> vel = 4;
 }
+
+component Game {
+	id = 1002;
+}
+

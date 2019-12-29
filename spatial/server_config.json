@@ -9,6 +9,12 @@
 			"allow": true
 		},
 		"entity_query": {
+			"allow": true,
+			"components": [
+				"*"
+			]
+		},
+		"system_entity_command": {
 			"allow": true
 		}
 	},

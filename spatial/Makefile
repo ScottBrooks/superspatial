@@ -29,12 +29,9 @@ snapshot:
 #Linux
 .PHONY: setup
 setup:
-	spatial package get worker_sdk c-dynamic-x86_64-gcc510-linux ${SDK_VERSION} ./lib/c_sdk --unzip
-	spatial package get worker_sdk c_headers ${SDK_VERSION} ./lib/c_sdk --unzip
 	spatial package get tools schema_compiler-x86_64-linux ${SDK_VERSION} ./bin --unzip
 	spatial package get tools snapshot_converter-x86_64-linux ${SDK_VERSION} ./bin --unzip
 	spatial package get --force --unzip schema standard_library ${SDK_VERSION} ./schema
-	cp lib/c_sdk/libimprobable_worker.so ./
 
 .PHONY: clean
 clean:
