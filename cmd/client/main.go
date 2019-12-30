@@ -62,8 +62,8 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	startBut := MenuSprite{
 		BasicEntity: ecs.NewBasic(),
 		RenderComponent: common.RenderComponent{
-			Drawable: mustLoadSprite("UI/Main_Menu/Start_BTN.png"),
-			Scale:    engo.Point{1, 1},
+			Drawable:    mustLoadSprite("UI/Main_Menu/Start_BTN.png"),
+			Scale:       engo.Point{1, 1},
 			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{
@@ -75,8 +75,8 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	exitBut := MenuSprite{
 		BasicEntity: ecs.NewBasic(),
 		RenderComponent: common.RenderComponent{
-			Drawable: mustLoadSprite("UI/Main_Menu/Exit_BTN.png"),
-			Scale:    engo.Point{1, 1},
+			Drawable:    mustLoadSprite("UI/Main_Menu/Exit_BTN.png"),
+			Scale:       engo.Point{1, 1},
 			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{

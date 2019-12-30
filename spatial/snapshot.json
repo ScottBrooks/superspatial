@@ -53,5 +53,33 @@
 		"improbable.Persistence": {},
 		"improbable.Metadata": {
 			"entity_type": "Game Tracker"
+		},
+		"improbable.Interest": {
+			"component_interest": [
+				{
+					"key": 60, 
+					"value": {
+						"queries": [
+							{"constraint": {
+								"component_constraint": [60],
+								"sphere_constraint": [],
+								"cylinder_constraint": [],
+								"box_constraint": [],
+								"relative_sphere_constraint": [],
+								"relative_cylinder_constraint": [],
+								"relative_box_constraint": [],
+								"entity_id_constraint": [],
+								"and_constraint": [],
+								"or_constraint": []
+							},
+							"full_snapshot_result": [true],
+							"frequency": [1],
+							"result_component_id": [60]
+							}
+						]
+					}
+				}
+			]
+
 		}
 	}

@@ -19,9 +19,17 @@ type SelectionSystem struct {
 	current     int
 }
 
+func (ss *SelectionSystem) Reset() {
+	ss.selectables = []selectable{}
+	ss.current = 0
+}
+
 func (*SelectionSystem) Remove(ecs.BasicEntity) {}
 
 func (ss *SelectionSystem) Update(dt float32) {
+	if len(ss.selectables) == 0 {
+		return
+	}
 	ss.selectables[ss.current].RenderComponent.Color = color.RGBA{255, 255, 255, 255}
 	if engo.Input.Button("Up").JustReleased() {
 		log.Printf("Pressed up")
@@ -33,6 +41,7 @@ func (ss *SelectionSystem) Update(dt float32) {
 	}
 	if engo.Input.Button("Enter").JustReleased() {
 		ss.selectables[ss.current].exec()
+		return
 	}
 	if ss.current < 0 {
 		ss.current = len(ss.selectables) - 1
