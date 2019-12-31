@@ -94,7 +94,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
 		ss.Reset()
-		engo.SetSceneByName("Game", false)
+		engo.SetSceneByName("Client", false)
 		mm.ConnectToSpatial()
 	})
 	ss.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, func() {
@@ -130,6 +130,8 @@ func main() {
 		useGraphics = true
 	}
 
+	cs := superspatial.ClientScene{superspatial.ServerScene{WorkerTypeName: "Client"}}
+
 	opts := engo.RunOptions{
 		Title:          "SuperSpatial",
 		Width:          worldWidth,
@@ -137,11 +139,11 @@ func main() {
 		StandardInputs: true,
 		HeadlessMode:   !useGraphics,
 	}
-	engo.RegisterScene(&ClientGameScene{})
+	engo.RegisterScene(&cs)
 
 	if useGraphics {
 		engo.Run(opts, &MainMenuScene{})
 	} else {
-		engo.Run(opts, &ClientGameScene{})
+		engo.Run(opts, &cs)
 	}
 }

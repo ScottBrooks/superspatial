@@ -1,4 +1,4 @@
 {
 	"workerType": "Client",
-	"layer": "position"
+	"layer": "client"
 }

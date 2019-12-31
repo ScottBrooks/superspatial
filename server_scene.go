@@ -28,6 +28,7 @@ type ServerScene struct {
 	phys            PhysicsSystem
 	Entities        map[sos.EntityID]EntityLifecycle
 	CurrentEntityID sos.EntityID
+	WorkerTypeName  string
 
 	InCritical bool
 }
@@ -119,7 +120,7 @@ func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (int
 	}
 	return nil, fmt.Errorf("Unimplemented")
 }
-func (*ServerScene) WorkerType() string { return "Server" }
+func (ss *ServerScene) WorkerType() string { return ss.WorkerTypeName }
 
 // OnClientConnect is called once a worker has connected, and we should create them an entity with a player input component.
 func (ss *ServerScene) OnClientConnect(WorkerID string) {

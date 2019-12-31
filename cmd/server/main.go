@@ -13,6 +13,7 @@ func main() {
 		Title:        "SuperSpatial",
 		HeadlessMode: true,
 	}
+	ss := superspatial.ServerScene{WorkerTypeName: "Server"}
 
-	engo.Run(opts, &superspatial.ServerScene{})
+	engo.Run(opts, &ss)
 }
