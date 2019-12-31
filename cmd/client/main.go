@@ -3,7 +3,9 @@ package main
 import (
 	"image/color"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/ScottBrooks/superspatial"
 
@@ -121,6 +123,7 @@ func (*MainMenuScene) ConnectToSpatial() {
 }
 
 func main() {
+	rand.Seed(time.Now().Unix())
 	var useGraphics bool
 	displayEnv := os.Getenv("DISPLAY")
 	if displayEnv != "" {
