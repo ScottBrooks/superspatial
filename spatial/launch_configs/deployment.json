@@ -4,6 +4,12 @@
     "x": 1000,
     "z": 1000
   },
+  "runtimeFlags": [
+    {
+      "name": "interest_queries_components_are_filtered_by_component_delivery",
+      "value": "false"
+    }
+  ],
   "loadBalancing": {
     "layerConfigurations": [
       {

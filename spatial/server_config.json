@@ -18,5 +18,10 @@
 			"allow": true
 		}
 	},
-	"launchConfiguration": {}
+	"launchConfiguration": {},
+	"componentDelivery": {
+		"default": "RELIABLE_ORDERED",
+		"checkoutAllInitially": false,
+		"override": {}
+	}
 }
