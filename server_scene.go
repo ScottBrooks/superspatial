@@ -26,6 +26,12 @@ type WorkerRequirementSet struct {
 type ImprobablePosition struct {
 	Coords Coordinates
 }
+type ImprobableWorker struct {
+	WorkerID   string
+	WorkerType string
+	//Connection
+
+}
 
 type ImprobableACL struct {
 	ReadAcl           WorkerRequirementSet            `sos:"read_acl"`
@@ -70,8 +76,10 @@ func (ServerScene) OnFlagUpdate(op sos.FlagUpdateOp) {}
 func (ServerScene) OnLogMessage(op sos.LogMessageOp) {
 	log.Printf("Log: %+v", op)
 }
-func (ServerScene) OnMetrics(op sos.MetricsOp)                 {}
-func (ServerScene) OnCriticalSection(op sos.CriticalSectionOp) {}
+func (ServerScene) OnMetrics(op sos.MetricsOp) {}
+func (ServerScene) OnCriticalSection(op sos.CriticalSectionOp) {
+	log.Printf("In Critical: %+v", op)
+}
 func (ServerScene) OnAddEntity(op sos.AddEntityOp) {
 	log.Printf("OnAddEntity: %+v", op)
 }
@@ -80,22 +88,36 @@ func (ServerScene) OnReserveEntityId(op sos.ReserveEntityIdOp)   {}
 func (ServerScene) OnReserveEntityIds(op sos.ReserveEntityIdsOp) {}
 func (ServerScene) OnCreateEntity(op sos.CreateEntityOp)         {}
 func (ServerScene) OnDeleteEntity(op sos.DeleteEntityOp)         {}
-func (ServerScene) OnEntityQuery(op sos.EntityQueryOp)           {}
-func (ServerScene) OnAddComponent(op sos.AddComponentOp)         {}
-func (ServerScene) OnRemoveComponent(op sos.RemoveComponentOp)   {}
-func (ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp)   {}
+func (ServerScene) OnEntityQuery(op sos.EntityQueryOp) {
+	log.Printf("OnEntityQuery: %+v", op)
+}
+func (ServerScene) OnAddComponent(op sos.AddComponentOp) {
+	log.Printf("OnAddCOmponent: %+v %+v", op, op.Component)
+}
+func (ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
+	log.Printf("OnRemoveComponent: %+v", op)
+}
+func (ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
+	log.Printf("OnAuthorityChange: %+v", op)
+}
 func (ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	log.Printf("COmpUpdate: %+v", op)
 	log.Printf("Component: %+v", op.Component)
 }
-func (ServerScene) OnCommandRequest(op sos.CommandRequestOp)   {}
-func (ServerScene) OnCommandResponse(op sos.CommandResponseOp) {}
+func (ServerScene) OnCommandRequest(op sos.CommandRequestOp) {
+	log.Printf("OnCommandRequest: %+v", op)
+}
+func (ServerScene) OnCommandResponse(op sos.CommandResponseOp) {
+	log.Printf("OnCommandResponse: %+v", op)
+}
 func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (interface{}, error) {
 	switch CID {
 	case 50:
 		return &ImprobableACL{ComponentWriteAcl: map[uint32]WorkerRequirementSet{}}, nil
 	case 54:
 		return &ImprobablePosition{}, nil
+	case 60:
+		return &ImprobableWorker{}, nil
 	case 1002:
 		return &SpatialGame{}, nil
 	}

@@ -29,5 +29,5 @@ func (cgs *ClientGameScene) Setup(u engo.Updater) {
 
 	adapter := superspatial.SpatialAdapter{}
 
-	cgs.spatial = sos.NewSpatialSystem(&adapter, "localhost", 7777, "Client")
+	cgs.spatial = sos.NewSpatialSystem(&adapter, "localhost", 7777, "")
 }
