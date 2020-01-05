@@ -41,6 +41,27 @@
 					}
 				},
 				{
+					"key": 1000,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["position"]
+							}
+						]
+					}
+				},
+				{
+					"key": 1001,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["position"]
+							}
+						]
+					}
+				},
+
+				{
 					"key": 58,
 					"value": {
 						"attribute_set": [
@@ -86,7 +107,24 @@
 							"full_snapshot_result": [],
 							"frequency": [],
 							"result_component_id": [60]
+							},
+							{"constraint": {
+								"component_constraint": [1003],
+								"sphere_constraint": [],
+								"cylinder_constraint": [],
+								"box_constraint": [],
+								"relative_sphere_constraint": [],
+								"relative_cylinder_constraint": [],
+								"relative_box_constraint": [],
+								"entity_id_constraint": [],
+								"and_constraint": [],
+								"or_constraint": []
+							},
+							"full_snapshot_result": [],
+							"frequency": [],
+							"result_component_id": [1003, 53]
 							}
+
 						]
 					}
 				}

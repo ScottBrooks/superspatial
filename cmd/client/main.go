@@ -130,7 +130,7 @@ func main() {
 		useGraphics = true
 	}
 
-	cs := superspatial.ClientScene{superspatial.ServerScene{WorkerTypeName: "Client"}}
+	cs := superspatial.ClientScene{ServerScene: superspatial.ServerScene{WorkerTypeName: "Client"}}
 
 	opts := engo.RunOptions{
 		Title:          "SuperSpatial",

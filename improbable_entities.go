@@ -71,8 +71,3 @@ type PlayerInputComponent struct {
 	Forward bool
 	Back    bool
 }
-
-type EntityLifecycle interface {
-	Create()
-	Complete()
-}

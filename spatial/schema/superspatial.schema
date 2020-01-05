@@ -33,5 +33,6 @@ component PlayerInput {
 	bool right = 2;
 	bool forward = 3;
 	bool back = 4;
+	bool attack = 5;
 }
 

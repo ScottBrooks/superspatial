@@ -15,22 +15,32 @@ func init() {
 }
 
 type SpatialPumpSystem struct {
-	spatial *sos.SpatialSystem
+	SS *ServerScene
 }
 
-func (ss *SpatialPumpSystem) Remove(ecs.BasicEntity) {}
-func (ss *SpatialPumpSystem) Update(dt float32) {
-	ss.spatial.Update(dt)
+func (sps *SpatialPumpSystem) Remove(ecs.BasicEntity) {}
+func (sps *SpatialPumpSystem) Update(dt float32) {
+	sps.SS.spatial.Update(dt)
+
+	for _, e := range sps.SS.Entities {
+		switch ent := e.(type) {
+		case *Ship:
+			ent.UpdatePos(dt)
+			//log.Printf("Got a ship: %+v", ent)
+			sps.SS.spatial.UpdateComponent(ent.ID, 1000, ent.Ship)
+		}
+	}
 }
 
 type ServerScene struct {
 	spatial         *sos.SpatialSystem
 	phys            PhysicsSystem
-	Entities        map[sos.EntityID]EntityLifecycle
+	Entities        map[sos.EntityID]interface{}
 	CurrentEntityID sos.EntityID
 	WorkerTypeName  string
 
-	InCritical bool
+	InCritical   bool
+	OnCreateFunc map[sos.RequestID]func(ID sos.EntityID)
 }
 
 func (*ServerScene) Preload() {}
@@ -38,10 +48,11 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 	w, _ := u.(*ecs.World)
 
 	ss.spatial = sos.NewSpatialSystem(ss, "localhost", 7777, "")
-	ss.Entities = map[sos.EntityID]EntityLifecycle{}
+	ss.Entities = map[sos.EntityID]interface{}{}
+	ss.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 
 	w.AddSystem(&ss.phys)
-	w.AddSystem(&SpatialPumpSystem{ss.spatial})
+	w.AddSystem(&SpatialPumpSystem{ss})
 
 }
 func (*ServerScene) Type() string { return "Server" }
@@ -61,13 +72,17 @@ func (ss *ServerScene) OnCriticalSection(op sos.CriticalSectionOp) {
 }
 func (ss *ServerScene) OnAddEntity(op sos.AddEntityOp) {
 	log.Debugf("OnAddEntity: %+v", op)
-	ss.Entities[op.ID] = &SpatialEntity{ID: op.ID}
+	//ss.Entities[op.ID] = &SpatialEntity{ID: op.ID}
 }
 func (ServerScene) OnRemoveEntity(op sos.RemoveEntityOp)         {}
 func (ServerScene) OnReserveEntityId(op sos.ReserveEntityIdOp)   {}
 func (ServerScene) OnReserveEntityIds(op sos.ReserveEntityIdsOp) {}
-func (ServerScene) OnCreateEntity(op sos.CreateEntityOp) {
+func (ss *ServerScene) OnCreateEntity(op sos.CreateEntityOp) {
 	log.Debugf("OnCreateEntity: %+v", op)
+	fn, ok := ss.OnCreateFunc[op.RID]
+	if ok {
+		fn(op.ID)
+	}
 }
 func (ss *ServerScene) OnDeleteEntity(op sos.DeleteEntityOp) {
 	log.Debugf("Deleting %d from entities", op.ID)
@@ -87,12 +102,28 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 func (ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 	log.Debugf("OnRemoveComponent: %+v", op)
 }
-func (ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
+func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 	log.Printf("OnAuthorityChange: %+v", op)
+	if op.CID == 58 && op.Authority == 1 {
+		e := ss.Entities[op.ID]
+		log.Printf("E: %+v", e)
+		s, ok := e.(*Ship)
+		if !ok {
+			log.Printf("UNable to cast :%+v to ship", e)
+		}
+		if ok {
+			ss.spatial.UpdateComponent(s.ID, 58, s.Interest)
+		}
+	}
 }
 func (ss *ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
-	log.Printf("COmpUpdate: %+v", op)
-	log.Printf("Component: %+v", op.Component)
+	ent, ok := ss.Entities[op.ID].(*Ship)
+	if ok {
+		switch op.CID {
+		case 1003:
+			ent.PIC = *op.Component.(*PlayerInputComponent)
+		}
+	}
 
 }
 func (ServerScene) OnCommandRequest(op sos.CommandRequestOp) {
@@ -126,17 +157,32 @@ func (ss *ServerScene) WorkerType() string { return ss.WorkerTypeName }
 func (ss *ServerScene) OnClientConnect(WorkerID string) {
 	// Create entity,
 	log.Printf("Creating client entity: %s", WorkerID)
-	readAttrSet := []WorkerAttributeSet{{[]string{"position"}}}
+	readAttrSet := []WorkerAttributeSet{
+		{[]string{"position"}},
+		{[]string{"client"}},
+	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
 	writeAcl := map[uint32]WorkerRequirementSet{
 		1003: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + WorkerID}}}},
+		1000: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		58:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
-	ent := struct {
-		PIC  PlayerInputComponent `sos:"1003"`
-		ACL  ImprobableACL        `sos:"50"`
-		Pos  ImprobablePosition   `sos:"54"`
-		Meta ImprobableMetadata   `sos:"53"`
-		Ship ShipComponent        `sos:"1000"`
-	}{ACL: ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}, Pos: ImprobablePosition{Coords: Coordinates{0, 0, 2}}, Meta: ImprobableMetadata{Name: "Client"}}
-	ss.spatial.CreateEntity(ent)
+	relSphere := QBIRelativeSphereConstraint{Radius: 100}
+	ent := Ship{ACL: ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}, Pos: ImprobablePosition{Coords: Coordinates{0, 0, 2}}, Meta: ImprobableMetadata{Name: "Client"}, Interest: ImprobableInterest{
+		Interest: map[uint32]ComponentInterest{
+			1003: ComponentInterest{
+				Queries: []QBIQuery{
+					{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{1000, 54, 53}},
+				},
+			},
+		},
+	}, Mass: 1000.0}
+	reqID := ss.spatial.CreateEntity(ent)
+	ss.OnCreateFunc[reqID] = func(ID sos.EntityID) {
+		ent.ID = ID
+		ent.SetupQBI()
+		ss.Entities[ID] = &ent
+		log.Printf("Interest: %+v", ent.Interest)
+	}
+
 }

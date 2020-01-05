@@ -12,6 +12,7 @@ func main() {
 	opts := engo.RunOptions{
 		Title:        "SuperSpatial",
 		HeadlessMode: true,
+		FPSLimit:     30,
 	}
 	ss := superspatial.ServerScene{WorkerTypeName: "Server"}
 
