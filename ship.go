@@ -29,12 +29,14 @@ func (s *Ship) UpdatePos(dt float32) {
 	if s.PIC.Back {
 	}
 	if s.PIC.Left {
-		s.Ship.Angle -= 1.0 * dt
+		s.Ship.Angle -= 5.0 * dt
 	}
 	if s.PIC.Right {
-		s.Ship.Angle += 1.0 * dt
+		s.Ship.Angle += 5.0 * dt
 	}
 	s.Ship.Pos = s.Ship.Pos.Add(s.Ship.Vel.Mul(dt))
+	s.Pos.Coords.X = float64(s.Ship.Pos[0])
+	s.Pos.Coords.Y = float64(s.Ship.Pos[1])
 }
 
 func (s *Ship) SetupQBI() {

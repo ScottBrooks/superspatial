@@ -28,6 +28,7 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 			ent.UpdatePos(dt)
 			//log.Printf("Got a ship: %+v", ent)
 			sps.SS.spatial.UpdateComponent(ent.ID, 1000, ent.Ship)
+			sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
 		}
 	}
 }
@@ -166,6 +167,7 @@ func (ss *ServerScene) OnClientConnect(WorkerID string) {
 		1003: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + WorkerID}}}},
 		1000: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 		58:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
 	relSphere := QBIRelativeSphereConstraint{Radius: 100}
 	ent := Ship{ACL: ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}, Pos: ImprobablePosition{Coords: Coordinates{0, 0, 2}}, Meta: ImprobableMetadata{Name: "Client"}, Interest: ImprobableInterest{
