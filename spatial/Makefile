@@ -14,10 +14,6 @@ test: *.go lib/*.go
 start_spatial:
 	spatial alpha local launch
 
-.PHONY: start_spatial_old
-start_spatial_old:
-	cd old_config && spatial build build-config && spatial local launch
-
 .PHONY: schema
 schema:
 	./bin/schema_compiler --schema_path=./schema/ ./schema/superspatial.schema --descriptor_set_out=./schema/bin/schema.descriptor --bundle_out=./schema/bin/schema.bundle
@@ -31,6 +27,13 @@ snapshot:
 setup:
 	spatial package get tools schema_compiler-x86_64-linux ${SDK_VERSION} ./bin --unzip
 	spatial package get tools snapshot_converter-x86_64-linux ${SDK_VERSION} ./bin --unzip
+	spatial package get --force --unzip schema standard_library ${SDK_VERSION} ./schema
+
+#Windows
+.PHONY: setup_win
+setup_win:
+	spatial package get tools schema_compiler-x86_64-win32 ${SDK_VERSION} ./bin --unzip
+	spatial package get tools snapshot_converter-x86_64-win32 ${SDK_VERSION} ./bin --unzip
 	spatial package get --force --unzip schema standard_library ${SDK_VERSION} ./schema
 
 .PHONY: clean

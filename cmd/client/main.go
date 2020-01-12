@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/ScottBrooks/superspatial"
@@ -45,6 +46,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	engo.Input.RegisterButton("Left", engo.KeyArrowLeft)
 	engo.Input.RegisterButton("Right", engo.KeyArrowRight)
 	engo.Input.RegisterButton("Enter", engo.KeyEnter)
+	engo.Input.RegisterButton("Space", engo.KeySpace)
 
 	common.SetBackground(color.White)
 	rs := common.RenderSystem{}
@@ -94,7 +96,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
 		ss.Reset()
-		engo.SetSceneByName("Client", false)
+		engo.SetSceneByName("Client", true)
 		mm.ConnectToSpatial()
 	})
 	ss.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, func() {
@@ -126,7 +128,7 @@ func main() {
 	rand.Seed(time.Now().Unix())
 	var useGraphics bool
 	displayEnv := os.Getenv("DISPLAY")
-	if displayEnv != "" {
+	if displayEnv != "" || runtime.GOOS == "windows" {
 		useGraphics = true
 	}
 

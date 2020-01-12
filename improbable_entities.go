@@ -51,6 +51,7 @@ type SpatialGameComponent struct {
 type ShipComponent struct {
 	CurrentEnergy uint32
 	MaxEnergy     uint32
+	Cooldown      float32
 
 	Pos   mgl32.Vec3
 	Vel   mgl32.Vec3
@@ -70,4 +71,5 @@ type PlayerInputComponent struct {
 	Right   bool
 	Forward bool
 	Back    bool
+	Attack  bool
 }

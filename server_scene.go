@@ -25,10 +25,17 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 	for _, e := range sps.SS.Entities {
 		switch ent := e.(type) {
 		case *Ship:
-			ent.UpdatePos(dt)
-			//log.Printf("Got a ship: %+v", ent)
-			sps.SS.spatial.UpdateComponent(ent.ID, 1000, ent.Ship)
-			sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+			ent.Update(dt)
+			if ent.HasAuthority {
+				sps.SS.spatial.UpdateComponent(ent.ID, 1000, ent.Ship)
+				sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+			}
+		case *Bullet:
+			ent.Update(dt)
+			if ent.HasAuthority {
+				sps.SS.spatial.UpdateComponent(ent.ID, 1001, ent.Bullet)
+				sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+			}
 		}
 	}
 }
@@ -54,6 +61,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 	w.AddSystem(&ss.phys)
 	w.AddSystem(&SpatialPumpSystem{ss})
+	w.AddSystem(&AttackSystem{SS: ss})
 
 }
 func (*ServerScene) Type() string { return "Server" }
@@ -114,6 +122,22 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 		}
 		if ok {
 			ss.spatial.UpdateComponent(s.ID, 58, s.Interest)
+		}
+	}
+	if op.CID == 1000 {
+		log.Printf("Authority change for ship: %+v", op)
+		e := ss.Entities[op.ID]
+		s, ok := e.(*Ship)
+		if ok {
+			s.HasAuthority = op.Authority == 1
+		}
+	}
+	if op.CID == 1001 {
+		log.Printf("Authority change for bullet: %+v", op)
+		e := ss.Entities[op.ID]
+		b, ok := e.(*Bullet)
+		if ok {
+			b.HasAuthority = op.Authority == 1
 		}
 	}
 }
