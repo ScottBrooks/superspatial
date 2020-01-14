@@ -20,6 +20,7 @@ type ClientScene struct {
 
 	EntToEcs map[sos.EntityID]uint64
 	Ships    map[sos.EntityID]*ClientShip
+	Bullets  map[sos.EntityID]*ClientBullet
 }
 
 type PlayerInputSystem struct {
@@ -46,6 +47,20 @@ func (pis *PlayerInputSystem) Update(dt float32) {
 
 }
 
+type ClientBullet struct {
+	ecs.BasicEntity
+	common.RenderComponent
+	common.SpaceComponent
+
+	BulletComponent
+}
+
+func (cb *ClientBullet) Predict(dt float32) {
+	cb.BulletComponent.Pos = cb.BulletComponent.Pos.Add(cb.BulletComponent.Vel.Mul(dt))
+
+	cb.SpaceComponent.Position = engo.Point{cb.BulletComponent.Pos[0], cb.BulletComponent.Pos[1]}
+}
+
 type ClientShip struct {
 	ecs.BasicEntity
 	common.RenderComponent
@@ -54,7 +69,7 @@ type ClientShip struct {
 	ShipComponent
 }
 
-func (cs *ClientShip) UpdatePos(dt float32) {
+func (cs *ClientShip) Predict(dt float32) {
 
 	cs.ShipComponent.Pos = cs.ShipComponent.Pos.Add(cs.ShipComponent.Vel.Mul(dt))
 	//	aabb := engo.AABB{Max: engo.Point{2048, 1024}}
@@ -62,7 +77,6 @@ func (cs *ClientShip) UpdatePos(dt float32) {
 
 	cs.SpaceComponent.Position = engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]}
 	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle
-
 }
 
 type Background struct {
@@ -74,6 +88,7 @@ type Background struct {
 func (cs *ClientScene) Preload() {
 	engo.Files.Load("Ships/Ship1/Ship1.png")
 	engo.Files.Load("Backgrounds/stars.png")
+	engo.Files.Load("Ships/Shots/Shot6/shot6_4.png")
 
 }
 func (cs *ClientScene) Setup(u engo.Updater) {
@@ -85,6 +100,7 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 	cs.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 	cs.EntToEcs = map[sos.EntityID]uint64{}
 	cs.Ships = map[sos.EntityID]*ClientShip{}
+	cs.Bullets = map[sos.EntityID]*ClientBullet{}
 
 	cs.PIS.spatial = cs.ServerScene.spatial
 
@@ -142,9 +158,36 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 
 	cs.CPS.Add(&ship)
 
-	cs.Camera.SpaceComponent = &ship.SpaceComponent
-	log.Printf("SC: %+v", cs.Camera)
 	return &ship
+}
+
+func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
+	log.Printf("Got a new bullet:%+v", b)
+	bullet := ClientBullet{BasicEntity: ecs.NewBasic()}
+	texture, err := common.LoadedSprite("Ships/Shots/Shot6/shot6_4.png")
+	if err != nil {
+		log.Printf("Unable to load texture: %v", err)
+	}
+
+	bullet.BulletComponent = *b
+	bullet.RenderComponent = common.RenderComponent{
+		Drawable: texture,
+		Scale:    engo.Point{1, 1},
+	}
+
+	bullet.SpaceComponent = common.SpaceComponent{
+		Position: engo.Point{b.Pos[0], b.Pos[1]},
+		Width:    texture.Width() * bullet.RenderComponent.Scale.X,
+		Height:   texture.Height() * bullet.RenderComponent.Scale.Y,
+	}
+	bullet.SpaceComponent.SetCenter(engo.Point{texture.Width() / 2, texture.Height() / 2})
+	bullet.RenderComponent.SetZIndex(12)
+	cs.R.Add(&bullet.BasicEntity, &bullet.RenderComponent, &bullet.SpaceComponent)
+
+	cs.CPS.Add(&bullet)
+	log.Printf("Add bullet: %+v", bullet)
+
+	return &bullet
 }
 
 func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
@@ -157,6 +200,21 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 		}
 		ship := cs.Ships[op.ID]
 		ship.ShipComponent = *s
+		if op.ID == cs.PIS.ID {
+			ship, ok := cs.Ships[op.ID]
+			if ok {
+				cs.Camera.SpaceComponent = &ship.SpaceComponent
+			}
+		}
+
+	}
+	if op.CID == 1001 {
+		b, ok := op.Component.(*BulletComponent)
+		if !ok {
+			log.Printf("Expected Bullet component but not found")
+		}
+		bullet := cs.Bullets[op.ID]
+		bullet.BulletComponent = *b
 
 	}
 }
@@ -172,6 +230,16 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 		ship := cs.NewShip(s)
 		cs.EntToEcs[op.ID] = ship.ID()
 		cs.Ships[op.ID] = ship
+	}
+	if op.CID == 1001 {
+		b, ok := op.Component.(*BulletComponent)
+		if !ok {
+			log.Printf("Expected BulletComponent but not found")
+		}
+		bullet := cs.NewBullet(b)
+		cs.EntToEcs[op.ID] = bullet.ID()
+		cs.Bullets[op.ID] = bullet
+
 	}
 
 }

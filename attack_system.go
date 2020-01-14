@@ -5,6 +5,7 @@ import (
 	"github.com/EngoEngine/engo"
 	"github.com/ScottBrooks/sos"
 	"github.com/go-gl/mathgl/mgl32"
+	log "github.com/sirupsen/logrus"
 )
 
 type AttackMessage struct {
@@ -36,10 +37,11 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 		1001: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
+	log.Printf("NewBullet: %+v", am)
 
 	ent := Bullet{
 		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
-		Pos:  ImprobablePosition{Coords: Coordinates{float64(am.Pos[0]), float64(am.Pos[1]), 2}},
+		Pos:  ImprobablePosition{Coords: Coordinates{float64(am.Pos[0]), 0, float64(am.Pos[1])}},
 		Meta: ImprobableMetadata{Name: "Bullet"},
 		Bullet: BulletComponent{
 			Pos:    am.Pos,

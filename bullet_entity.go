@@ -1,6 +1,8 @@
 package superspatial
 
-import "github.com/ScottBrooks/sos"
+import (
+	"github.com/ScottBrooks/sos"
+)
 
 type Bullet struct {
 	ID     sos.EntityID       `sos:"-"`
@@ -16,5 +18,4 @@ func (b *Bullet) Update(dt float32) {
 	b.Bullet.Pos = b.Bullet.Pos.Add(b.Bullet.Vel.Mul(dt))
 	b.Pos.Coords.X = float64(b.Bullet.Pos[0])
 	b.Pos.Coords.Z = float64(b.Bullet.Pos[1])
-
 }

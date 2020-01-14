@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/EngoEngine/engo"
+	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
 	"github.com/go-gl/mathgl/mgl32"
 	log "github.com/sirupsen/logrus"
@@ -19,7 +20,11 @@ type Ship struct {
 	Ship     ShipComponent        `sos:"1000"`
 
 	Mass         float32 `sos:"-"`
+	AttackDamage uint32  `sos:"-"`
 	HasAuthority bool    `sos:"-"`
+
+	common.SpaceComponent     `sos:"-"`
+	common.CollisionComponent `sos:"-"`
 }
 
 func clampToAABB(pos mgl32.Vec3, vel mgl32.Vec3, aabb engo.AABB) (mgl32.Vec3, mgl32.Vec3) {
@@ -62,9 +67,11 @@ func (s *Ship) UpdateAttack(dt float32) {
 	}
 	if s.PIC.Attack && s.Ship.Cooldown <= 0 {
 		engo.Mailbox.Dispatch(AttackMessage{
-			Pos:   s.Ship.Pos,
-			Vel:   s.Ship.Vel,
-			Angle: s.Ship.Angle,
+			Pos:    s.Ship.Pos,
+			Vel:    s.Ship.Vel,
+			Angle:  s.Ship.Angle,
+			ShipID: s.ID,
+			Damage: s.AttackDamage,
 		})
 
 		s.Ship.Cooldown = 0.5
@@ -104,7 +111,10 @@ func (s *Ship) SetupQBI() {
 	ID := int64(s.ID)
 	ShipCID := uint32(1000)
 	BulletCID := uint32(1001)
-	relSphere := QBIRelativeSphereConstraint{Radius: 100}
+	//relConstraint := QBIRelativeSphereConstraint{Radius: 100}
+	relConstraint := QBIRelativeBoxConstraint{
+		Edge: EdgeLength{X: 800, Y: 30000, Z: 300},
+	}
 	constraint := QBIConstraint{
 		OrConstraint: []QBIConstraint{
 			// EntiyID is our entity id
@@ -113,7 +123,7 @@ func (s *Ship) SetupQBI() {
 			QBIConstraint{
 				// It's in our relative sphere AND it's ShipComponent or Bullet component
 				AndConstraint: []QBIConstraint{
-					QBIConstraint{RelativeSphereConstraint: &relSphere},
+					QBIConstraint{RelativeBoxConstraint: &relConstraint},
 					QBIConstraint{
 						OrConstraint: []QBIConstraint{
 							QBIConstraint{ComponentIDConstraint: &ShipCID},
