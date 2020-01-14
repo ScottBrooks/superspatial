@@ -3,6 +3,7 @@ package superspatial
 import (
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
+	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
 	"github.com/go-gl/mathgl/mgl32"
 	log "github.com/sirupsen/logrus"
@@ -49,6 +50,17 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 			Damage: am.Damage,
 			ShipID: am.ShipID,
 		},
+
+		BasicEntity: ecs.NewBasic(),
+		CollisionComponent: common.CollisionComponent{
+			Main:  1,
+			Group: 2,
+		},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{am.Pos[0], am.Pos[1]},
+			Width:    16,
+			Height:   16,
+		},
 	}
 	reqID := as.SS.spatial.CreateEntity(ent)
 
@@ -56,6 +68,8 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 		ent.ID = ID
 		as.SS.Entities[ID] = &ent
 		as.Entities = append(as.Entities, &ent)
+
+		as.SS.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
 	}
 }
 

@@ -2,6 +2,7 @@ package superspatial
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -68,6 +69,8 @@ type ServerScene struct {
 	OnCreateFunc map[sos.RequestID]func(ID sos.EntityID)
 
 	Bounds engo.AABB
+
+	CollisionSystem common.CollisionSystem
 }
 
 func (*ServerScene) Preload() {}
@@ -81,10 +84,12 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 	ss.Bounds = engo.AABB{Max: engo.Point{2048, 1024}}
 
+	ss.CollisionSystem = common.CollisionSystem{Solids: 1}
+
 	w.AddSystem(&ss.phys)
 	w.AddSystem(&SpatialPumpSystem{ss})
 	w.AddSystem(&AttackSystem{SS: ss})
-	w.AddSystem(&common.CollisionSystem{})
+	w.AddSystem(&ss.CollisionSystem)
 
 	engo.Mailbox.Listen(DeleteEntityMessage{}.Type(), func(msg engo.Message) {
 		dem, ok := msg.(DeleteEntityMessage)
@@ -92,6 +97,14 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 			return
 		}
 		ss.spatial.Delete(dem.ID)
+	})
+
+	engo.Mailbox.Listen(common.CollisionMessage{}.Type(), func(msg engo.Message) {
+		log.Printf("COLLISION!")
+		collision, ok := msg.(common.CollisionMessage)
+		if ok {
+			log.Printf("From: %+v %+v To: %+v %+v", collision.Entity.BasicEntity, collision.Entity.SpaceComponent, collision.To.BasicEntity, collision.To.SpaceComponent)
+		}
 	})
 
 }
@@ -259,21 +272,40 @@ func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
 	relSphere := QBIRelativeSphereConstraint{Radius: 100}
-	ent := Ship{ACL: ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}, Pos: ImprobablePosition{Coords: Coordinates{0, 0, 2}}, Meta: ImprobableMetadata{Name: "Client"}, Interest: ImprobableInterest{
-		Interest: map[uint32]ComponentInterest{
-			1003: ComponentInterest{
-				Queries: []QBIQuery{
-					{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{1000, 54, 53}},
+	spawnPoint := mgl32.Vec2{rand.Float32() * 2048, rand.Float32() * 1024}
+	ent := Ship{
+		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
+		Pos:  ImprobablePosition{Coords: Coordinates{float64(spawnPoint[0]), 0, float64(spawnPoint[1])}},
+		Meta: ImprobableMetadata{Name: "Client"},
+		Interest: ImprobableInterest{
+			Interest: map[uint32]ComponentInterest{
+				1003: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{1000, 54, 53}},
+					},
 				},
 			},
 		},
-	}, Mass: 1000.0,
-		AttackDamage: 20}
+		Mass:         1000.0,
+		AttackDamage: 20,
+		Ship: ShipComponent{
+			Pos: spawnPoint.Vec3(0),
+		},
+
+		BasicEntity:        ecs.NewBasic(),
+		CollisionComponent: common.CollisionComponent{Main: 1, Group: 1, Collides: 1 | 2},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{spawnPoint[0], spawnPoint[1]},
+			Width:    100,
+			Height:   100,
+		},
+	}
 	reqID := ss.spatial.CreateEntity(ent)
 	ss.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 		ent.ID = ID
 		ent.SetupQBI()
 		ss.Entities[ID] = &ent
 		ss.Clients[ClientID] = []sos.EntityID{ID}
+		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
 	}
 }

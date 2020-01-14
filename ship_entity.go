@@ -3,6 +3,7 @@ package superspatial
 import (
 	"math"
 
+	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
 	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
@@ -11,7 +12,11 @@ import (
 )
 
 type Ship struct {
-	ID       sos.EntityID         `sos:"-"`
+	ecs.BasicEntity
+	common.SpaceComponent
+	common.CollisionComponent
+
+	ID       sos.EntityID
 	PIC      PlayerInputComponent `sos:"1003"`
 	ACL      ImprobableACL        `sos:"50"`
 	Pos      ImprobablePosition   `sos:"54"`
@@ -19,12 +24,9 @@ type Ship struct {
 	Interest ImprobableInterest   `sos:"58"`
 	Ship     ShipComponent        `sos:"1000"`
 
-	Mass         float32 `sos:"-"`
-	AttackDamage uint32  `sos:"-"`
-	HasAuthority bool    `sos:"-"`
-
-	common.SpaceComponent     `sos:"-"`
-	common.CollisionComponent `sos:"-"`
+	Mass         float32
+	AttackDamage uint32
+	HasAuthority bool
 }
 
 func clampToAABB(pos mgl32.Vec3, vel mgl32.Vec3, aabb engo.AABB) (mgl32.Vec3, mgl32.Vec3) {
@@ -91,20 +93,28 @@ func (s *Ship) UpdatePos(dt float32) {
 		accel := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
 		accel = accel.Mul(s.Mass).Mul(dt)
 		s.Ship.Vel = s.Ship.Vel.Sub(accel)
-
 	}
 	if s.PIC.Left {
-		s.Ship.Angle -= 50.0 * dt
+		s.Ship.Angle -= 90.0 * dt
 	}
 	if s.PIC.Right {
-		s.Ship.Angle += 50.0 * dt
+		s.Ship.Angle += 90.0 * dt
 	}
+
+	vLen := s.Ship.Vel.Len()
+	if vLen > 500 || vLen < -500 {
+		s.Ship.Vel = s.Ship.Vel.Normalize().Mul(500)
+	}
+
 	s.Ship.Pos = s.Ship.Pos.Add(s.Ship.Vel.Mul(dt))
 	aabb := engo.AABB{Max: engo.Point{2048, 1024}}
 	s.Ship.Pos, s.Ship.Vel = clampToAABB(s.Ship.Pos, s.Ship.Vel, aabb)
 	s.Pos.Coords.X = float64(s.Ship.Pos[0])
 	s.Pos.Coords.Z = float64(s.Ship.Pos[1])
 
+	s.SpaceComponent.Position.X = s.Ship.Pos[0]
+	s.SpaceComponent.Position.Y = s.Ship.Pos[1]
+	s.SpaceComponent.Rotation = s.Ship.Angle
 }
 
 func (s *Ship) SetupQBI() {

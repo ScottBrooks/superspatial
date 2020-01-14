@@ -58,7 +58,7 @@ type ClientBullet struct {
 func (cb *ClientBullet) Predict(dt float32) {
 	cb.BulletComponent.Pos = cb.BulletComponent.Pos.Add(cb.BulletComponent.Vel.Mul(dt))
 
-	cb.SpaceComponent.Position = engo.Point{cb.BulletComponent.Pos[0], cb.BulletComponent.Pos[1]}
+	cb.SpaceComponent.SetCenter(engo.Point{cb.BulletComponent.Pos[0], cb.BulletComponent.Pos[1]})
 }
 
 type ClientShip struct {
@@ -75,7 +75,7 @@ func (cs *ClientShip) Predict(dt float32) {
 	//	aabb := engo.AABB{Max: engo.Point{2048, 1024}}
 	//	cs.ShipComponent.Pos = clampToAABB(cs.ShipComponent.Pos, aabb)
 
-	cs.SpaceComponent.Position = engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]}
+	cs.SpaceComponent.SetCenter(engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]})
 	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle
 }
 
@@ -88,7 +88,7 @@ type Background struct {
 func (cs *ClientScene) Preload() {
 	engo.Files.Load("Ships/Ship1/Ship1.png")
 	engo.Files.Load("Backgrounds/stars.png")
-	engo.Files.Load("Ships/Shots/Shot6/shot6_4.png")
+	engo.Files.Load("Ships/Shots/Shot6/bullet.png")
 
 }
 func (cs *ClientScene) Setup(u engo.Updater) {
@@ -142,17 +142,20 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 		log.Printf("UNable to load texture: %+v", err)
 	}
 
+	spawnPoint := engo.Point{s.Pos[0], s.Pos[1]}
+
 	ship.RenderComponent = common.RenderComponent{
 		Drawable: texture,
 		Scale:    engo.Point{1, 1},
 	}
 
 	ship.SpaceComponent = common.SpaceComponent{
-		Position: engo.Point{s.Pos[0], s.Pos[1]},
-		Width:    texture.Width() * ship.RenderComponent.Scale.X,
-		Height:   texture.Height() * ship.RenderComponent.Scale.Y,
+		Width:  texture.Width() * ship.RenderComponent.Scale.X,
+		Height: texture.Height() * ship.RenderComponent.Scale.Y,
 	}
-	ship.SpaceComponent.SetCenter(engo.Point{texture.Width() / 2, texture.Height() / 2})
+
+	ship.SpaceComponent.SetCenter(spawnPoint)
+	log.Printf("SC: %+v %+v", ship.SpaceComponent, spawnPoint)
 	ship.RenderComponent.SetZIndex(10)
 	cs.R.Add(&ship.BasicEntity, &ship.RenderComponent, &ship.SpaceComponent)
 
@@ -164,7 +167,7 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
 	log.Printf("Got a new bullet:%+v", b)
 	bullet := ClientBullet{BasicEntity: ecs.NewBasic()}
-	texture, err := common.LoadedSprite("Ships/Shots/Shot6/shot6_4.png")
+	texture, err := common.LoadedSprite("Ships/Shots/Shot6/bullet.png")
 	if err != nil {
 		log.Printf("Unable to load texture: %v", err)
 	}
@@ -181,7 +184,8 @@ func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
 		Height:   texture.Height() * bullet.RenderComponent.Scale.Y,
 	}
 	bullet.SpaceComponent.SetCenter(engo.Point{texture.Width() / 2, texture.Height() / 2})
-	bullet.RenderComponent.SetZIndex(12)
+	// Bullets go slightly behind ships
+	bullet.RenderComponent.SetZIndex(9)
 	cs.R.Add(&bullet.BasicEntity, &bullet.RenderComponent, &bullet.SpaceComponent)
 
 	cs.CPS.Add(&bullet)
@@ -236,9 +240,12 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 		if !ok {
 			log.Printf("Expected BulletComponent but not found")
 		}
-		bullet := cs.NewBullet(b)
-		cs.EntToEcs[op.ID] = bullet.ID()
-		cs.Bullets[op.ID] = bullet
+		_, hasBullet := cs.EntToEcs[op.ID]
+		if !hasBullet {
+			bullet := cs.NewBullet(b)
+			cs.EntToEcs[op.ID] = bullet.ID()
+			cs.Bullets[op.ID] = bullet
+		}
 
 	}
 
