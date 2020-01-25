@@ -10,13 +10,32 @@ import (
 	"github.com/ScottBrooks/sos"
 )
 
+type MenuSprite struct {
+	ecs.BasicEntity
+	common.RenderComponent
+	common.SpaceComponent
+}
+
+func mustLoadSprite(sprite string) *common.Texture {
+	tex, err := common.LoadedSprite(sprite)
+	if err != nil {
+		panic(err)
+	}
+
+	return tex
+}
+
 type ClientScene struct {
 	ServerScene
 
-	R      common.RenderSystem
-	Camera common.EntityScroller
-	PIS    PlayerInputSystem
-	CPS    ClientPredictionSystem
+	CS        *common.CameraSystem
+	R         common.RenderSystem
+	Camera    common.EntityScroller
+	PIS       PlayerInputSystem
+	CPS       ClientPredictionSystem
+	HS        HudSystem
+	HUDPos    engo.Point
+	EnergyBar MenuSprite
 
 	EntToEcs map[sos.EntityID]uint64
 	Ships    map[sos.EntityID]*ClientShip
@@ -89,8 +108,13 @@ func (cs *ClientScene) Preload() {
 	engo.Files.Load("Ships/Ship1/Ship1.png")
 	engo.Files.Load("Backgrounds/stars.png")
 	engo.Files.Load("Ships/Shots/Shot6/bullet.png")
+	engo.Files.Load("UI/Upgrade/Health.png")
+	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_1.png")
+	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
+	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_3.png")
 
 }
+
 func (cs *ClientScene) Setup(u engo.Updater) {
 
 	w, _ := u.(*ecs.World)
@@ -108,6 +132,16 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 	w.AddSystem(&cs.PIS)
 	w.AddSystem(&SpatialPumpSystem{&cs.ServerScene})
 	w.AddSystem(&cs.CPS)
+	for _, sys := range w.Systems() {
+		switch ent := sys.(type) {
+		case *common.CameraSystem:
+			log.Printf("Found a camera system: %+v", ent)
+			cs.CS = ent
+		}
+	}
+	// Once we have found our camera system, hook up our hud system
+	cs.HS = HudSystem{Pos: &cs.HUDPos, Camera: cs.CS}
+	w.AddSystem(&cs.HS)
 
 	backgroundImage, err := common.LoadedSprite("Backgrounds/stars.png")
 	if err != nil {
@@ -125,12 +159,64 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 			Height:   1024,
 		},
 	}
+	bg.SetZIndex(0)
 
 	worldBounds := engo.AABB{Max: engo.Point{2048, 1024}}
 
 	cs.Camera.TrackingBounds = worldBounds
 	cs.R.Add(&bg.BasicEntity, &bg.RenderComponent, &bg.SpaceComponent)
 	w.AddSystem(&cs.Camera)
+
+	cs.HUDPos.Set(0, 0)
+
+	healthBar := MenuSprite{
+		BasicEntity: ecs.NewBasic(),
+		RenderComponent: common.RenderComponent{
+			Drawable:    mustLoadSprite("UI/Upgrade/Health.png"),
+			Scale:       engo.Point{1, 1},
+			StartZIndex: 100,
+		},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{10, 10},
+			Width:    258.0,
+			Height:   44.0,
+		},
+	}
+	cs.R.Add(&healthBar.BasicEntity, &healthBar.RenderComponent, &healthBar.SpaceComponent)
+	cs.HS.Add(&healthBar.BasicEntity, &healthBar.SpaceComponent, engo.Point{10, 10})
+
+	cs.EnergyBar = MenuSprite{
+		BasicEntity: ecs.NewBasic(),
+		RenderComponent: common.RenderComponent{
+			Drawable:    mustLoadSprite("UI/Loading_Bar/Loading_Bar_2_2.png"),
+			Scale:       engo.Point{0.6, 1},
+			StartZIndex: 100,
+		},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{10, 10},
+			Width:    890.0,
+			Height:   40.0,
+		},
+	}
+	cs.R.Add(&cs.EnergyBar.BasicEntity, &cs.EnergyBar.RenderComponent, &cs.EnergyBar.SpaceComponent)
+	cs.HS.Add(&cs.EnergyBar.BasicEntity, &cs.EnergyBar.SpaceComponent, engo.Point{140, 10})
+
+	engo.Mailbox.Listen(DeleteEntityMessage{}.Type(), func(m engo.Message) {
+		delete, ok := m.(DeleteEntityMessage)
+		log.Printf("Got delete message: %+v", delete)
+		if ok {
+			log.Printf("Ent: %+v", cs.Entities[delete.ID])
+			ship, foundShip := cs.Ships[delete.ID]
+			if foundShip {
+				w.RemoveEntity(ship.BasicEntity)
+			}
+			bullet, foundBullet := cs.Bullets[delete.ID]
+			if foundBullet {
+				w.RemoveEntity(bullet.BasicEntity)
+			}
+
+		}
+	})
 
 }
 
@@ -208,6 +294,10 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 			ship, ok := cs.Ships[op.ID]
 			if ok {
 				cs.Camera.SpaceComponent = &ship.SpaceComponent
+				energyPercent := float32(ship.ShipComponent.CurrentEnergy) / float32(ship.ShipComponent.MaxEnergy)
+
+				log.Printf("SC: %+v %f", ship.ShipComponent, energyPercent)
+				cs.EnergyBar.RenderComponent.Scale.X = energyPercent * 0.6
 			}
 		}
 
@@ -249,6 +339,14 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 
 	}
 
+}
+
+func (cs *ClientScene) OnRemoveComponent(op sos.RemoveComponentOp) {
+	cs.ServerScene.OnRemoveComponent(op)
+
+	if op.CID == 1001 {
+		engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
+	}
 }
 
 func (cs *ClientScene) OnAuthorityChange(op sos.AuthorityChangeOp) {

@@ -18,7 +18,23 @@
 			"allow": true
 		}
 	},
-	"launchConfiguration": {},
+	"launchConfiguration": {
+		"cloudDeployment": {
+			"linux": {
+				"localBuildDirectory": "build/server",
+				"command": "launch.sh",
+				"arguments": [
+					"-host",
+					"${IMPROBABLE_RECEPTIONIST_HOST}",
+					"-port",
+					"${IMPROBABLE_RECEPTIONIST_PORT}",
+					"-worker",
+					"${IMPROBABLE_WORKER_ID}"
+				]
+			}
+		}
+
+	},
 	"componentDelivery": {
 		"default": "RELIABLE_ORDERED",
 		"checkoutAllInitially": false,

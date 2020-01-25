@@ -40,14 +40,15 @@ setup_win:
 clean:
 	rm -rf lib/c_sdk libworker.so worker.dll ./bin/ || true
 	
+ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 .PHONY: deploy
 deploy:
 	rm -rf build/server
 	mkdir -p build/server
-	cp config/launch.sh build/server/
-	go build -o build/server/server ./cmd/server
-	cp lib/c_sdk/libworker.so build/server
+	cp launch.sh build/server/
+	docker run -v $(ROOT_DIR)/../../:/work -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/server/server cmd/server/main.go"
+	cp ../../sos/libimprobable_worker.so build/server
 	spatial alpha cloud upload -a boids --force
 	spatial alpha cloud launch -d boids -a boids
 

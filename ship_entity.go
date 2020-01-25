@@ -67,7 +67,7 @@ func (s *Ship) UpdateAttack(dt float32) {
 	if s.PIC.Attack {
 		log.Printf("Try to do attack: %f", s.Ship.Cooldown)
 	}
-	if s.PIC.Attack && s.Ship.Cooldown <= 0 {
+	if s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > s.AttackDamage {
 		engo.Mailbox.Dispatch(AttackMessage{
 			Pos:    s.Ship.Pos,
 			Vel:    s.Ship.Vel,
@@ -77,6 +77,7 @@ func (s *Ship) UpdateAttack(dt float32) {
 		})
 
 		s.Ship.Cooldown = 0.5
+		s.Ship.CurrentEnergy -= s.AttackDamage
 	}
 }
 
@@ -155,5 +156,11 @@ func (s *Ship) SetupQBI() {
 	}
 
 	s.Interest = qbi
+
+}
+
+func (s *Ship) TakeDamage(amount uint32) {
+	log.Printf("I'm taking damage: %d", amount)
+	s.Ship.CurrentEnergy -= amount
 
 }

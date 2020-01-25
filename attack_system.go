@@ -1,6 +1,8 @@
 package superspatial
 
 import (
+	"math"
+
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
 	"github.com/EngoEngine/engo/common"
@@ -40,13 +42,23 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 	}
 	log.Printf("NewBullet: %+v", am)
 
+	pos := am.Pos
+	vel := am.Vel
+	angleRad := float64(mgl32.DegToRad(am.Angle))
+	dir := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
+	if am.Vel.Len() < 100 {
+		offset := am.Vel.Add(dir.Mul(30))
+		pos = pos.Add(offset)
+		vel = vel.Add(dir.Mul(30))
+	}
+
 	ent := Bullet{
 		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
-		Pos:  ImprobablePosition{Coords: Coordinates{float64(am.Pos[0]), 0, float64(am.Pos[1])}},
+		Pos:  ImprobablePosition{Coords: Coordinates{float64(pos[0]), 0, float64(pos[1])}},
 		Meta: ImprobableMetadata{Name: "Bullet"},
 		Bullet: BulletComponent{
-			Pos:    am.Pos,
-			Vel:    am.Vel,
+			Pos:    pos,
+			Vel:    vel,
 			Damage: am.Damage,
 			ShipID: am.ShipID,
 		},
@@ -57,7 +69,7 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 			Group: 2,
 		},
 		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{am.Pos[0], am.Pos[1]},
+			Position: engo.Point{pos[0], pos[1]},
 			Width:    16,
 			Height:   16,
 		},
@@ -67,6 +79,7 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 	as.SS.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 		ent.ID = ID
 		as.SS.Entities[ID] = &ent
+		as.SS.ECS[ent.GetBasicEntity().ID()] = &ent
 		as.Entities = append(as.Entities, &ent)
 
 		as.SS.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)

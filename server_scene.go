@@ -60,6 +60,7 @@ type ServerScene struct {
 	spatial  *sos.SpatialSystem
 	phys     PhysicsSystem
 	Entities map[sos.EntityID]interface{}
+	ECS      map[uint64]interface{}
 	// Clients maps the entity id of their client worker with the entities we want to delete when they disconnect(ship?)
 	Clients         map[sos.EntityID][]sos.EntityID
 	CurrentEntityID sos.EntityID
@@ -79,6 +80,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 	ss.spatial = sos.NewSpatialSystem(ss, "localhost", 7777, "")
 	ss.Entities = map[sos.EntityID]interface{}{}
+	ss.ECS = map[uint64]interface{}{}
 	ss.Clients = map[sos.EntityID][]sos.EntityID{}
 	ss.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 
@@ -100,10 +102,20 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 	})
 
 	engo.Mailbox.Listen(common.CollisionMessage{}.Type(), func(msg engo.Message) {
-		log.Printf("COLLISION!")
 		collision, ok := msg.(common.CollisionMessage)
 		if ok {
-			log.Printf("From: %+v %+v To: %+v %+v", collision.Entity.BasicEntity, collision.Entity.SpaceComponent, collision.To.BasicEntity, collision.To.SpaceComponent)
+			ship, foundShip := ss.ECS[collision.To.ID()].(*Ship)
+			bullet, foundBullet := ss.ECS[collision.Entity.ID()].(*Bullet)
+			log.Printf("FS: %v FB: %v", foundShip, foundBullet)
+			if foundShip && foundBullet && bullet.Bullet.ShipID != ship.ID {
+				w.RemoveEntity(bullet.BasicEntity)
+				engo.Mailbox.Dispatch(DeleteEntityMessage{ID: bullet.ID})
+				ship.TakeDamage(bullet.Bullet.Damage)
+
+				log.Printf("Hit ship: %+v", ship)
+
+			}
+
 		}
 	})
 
@@ -289,7 +301,9 @@ func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 		Mass:         1000.0,
 		AttackDamage: 20,
 		Ship: ShipComponent{
-			Pos: spawnPoint.Vec3(0),
+			Pos:           spawnPoint.Vec3(0),
+			MaxEnergy:     100,
+			CurrentEnergy: 100,
 		},
 
 		BasicEntity:        ecs.NewBasic(),
@@ -305,6 +319,7 @@ func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 		ent.ID = ID
 		ent.SetupQBI()
 		ss.Entities[ID] = &ent
+		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.Clients[ClientID] = []sos.EntityID{ID}
 		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
 	}
