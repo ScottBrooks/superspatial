@@ -118,8 +118,25 @@ func (cs *ClientScene) Preload() {
 func (cs *ClientScene) Setup(u engo.Updater) {
 
 	w, _ := u.(*ecs.World)
+	var locatorParams *sos.WorkerLocatorParams
+	host := cs.ServerScene.Host
+	port := cs.ServerScene.Port
+	if cs.ServerScene.PIT != "" {
+		locatorParams = &sos.WorkerLocatorParams{
+			ProjectName:     cs.ServerScene.ProjectName,
+			CredentialsType: sos.WorkerLocatorPlayerIdentityCredentials,
 
-	cs.spatial = sos.NewSpatialSystem(cs, "localhost", 7777, "")
+			PlayerIdentityCredentials: sos.WorkerPlayerIdentityCredentials{
+				PlayerIdentityToken: cs.ServerScene.PIT,
+				LoginToken:          cs.ServerScene.LT,
+			},
+		}
+		host = cs.ServerScene.Locator
+		port = 0
+	}
+	log.Printf("LocatorParams: %+v", locatorParams)
+
+	cs.spatial = sos.NewSpatialSystem(cs, host, port, cs.ServerScene.WorkerID, locatorParams)
 	cs.Entities = map[sos.EntityID]interface{}{}
 	cs.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 	cs.EntToEcs = map[sos.EntityID]uint64{}

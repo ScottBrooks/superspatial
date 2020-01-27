@@ -22,7 +22,7 @@
 		"cloudDeployment": {
 			"linux": {
 				"localBuildDirectory": "build/server",
-				"command": "launch.sh",
+				"command": "./launch.sh",
 				"arguments": [
 					"-host",
 					"${IMPROBABLE_RECEPTIONIST_HOST}",

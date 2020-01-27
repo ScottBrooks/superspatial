@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"image/color"
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -97,7 +99,6 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
 		ss.Reset()
 		engo.SetSceneByName("Client", true)
-		mm.ConnectToSpatial()
 	})
 	ss.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, func() {
 		engo.Exit()
@@ -120,11 +121,34 @@ func (*MainMenuScene) Preload() {
 
 func (*MainMenuScene) Type() string { return "Menu" }
 
-func (*MainMenuScene) ConnectToSpatial() {
-	log.Printf("Connecting to spatial")
-}
-
 func main() {
+	// Chdir to the directory our exe started in.
+	ex, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := os.Stat("assets"); os.IsNotExist(err) {
+		log.Printf("Can't find assets folder, changing our directory to path of exe.")
+		exePath := filepath.Dir(ex)
+		err = os.Chdir(exePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := os.Stat("assets"); os.IsNotExist(err) {
+			log.Fatal("Still can't find assets folder, quitting")
+		}
+	}
+
+	locator := flag.String("locator", "locator.improbable.io", "locator address")
+	pit := flag.String("playerIdentityToken", "", "player identity token")
+	lt := flag.String("loginToken", "", "login token")
+	project := flag.String("project", "", "project name")
+
+	host := flag.String("host", "127.0.0.1", "receptionist host address")
+	port := flag.Int("port", 7777, "receptionist port")
+	workerID := flag.String("worker", "", "worker ID")
+	flag.Parse()
+
 	rand.Seed(time.Now().Unix())
 	var useGraphics bool
 	displayEnv := os.Getenv("DISPLAY")
@@ -132,7 +156,7 @@ func main() {
 		useGraphics = true
 	}
 
-	cs := superspatial.ClientScene{ServerScene: superspatial.ServerScene{WorkerTypeName: "Client"}}
+	cs := superspatial.ClientScene{ServerScene: superspatial.ServerScene{WorkerTypeName: "LauncherClient", Host: *host, Port: *port, WorkerID: *workerID, Locator: *locator, PIT: *pit, LT: *lt, ProjectName: *project}}
 
 	opts := engo.RunOptions{
 		Title:          "SuperSpatial",

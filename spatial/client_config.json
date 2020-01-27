@@ -1,4 +1,9 @@
 {
-	"workerType": "Client",
-	"layer": "client"
+	"workerType": "LauncherClient",
+	"layer": "client",
+	"uploadConfiguration": {
+		"windows": {
+			"localBuildDirectory": "build/LauncherClient"
+		}
+	}
 }

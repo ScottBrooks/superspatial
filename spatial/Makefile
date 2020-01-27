@@ -39,16 +39,28 @@ setup_win:
 .PHONY: clean
 clean:
 	rm -rf lib/c_sdk libworker.so worker.dll ./bin/ || true
+
+.PHONY: build-container
+build-container:
+	docker built -t xgo-bash .
 	
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 .PHONY: deploy
 deploy:
+	rm -rf build/client
 	rm -rf build/server
 	mkdir -p build/server
+	mkdir -p build/client
 	cp launch.sh build/server/
+	cd ..; go build -o spatial/build/client/client.exe cmd/client/main.go
+	cp ../../sos/improbable_worker.dll build/client
+	cp -r ../assets build/client/
+	cp -r launcher_client_config.json build/client/
 	docker run -v $(ROOT_DIR)/../../:/work -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/server/server cmd/server/main.go"
 	cp ../../sos/libimprobable_worker.so build/server
-	spatial alpha cloud upload -a boids --force
-	spatial alpha cloud launch -d boids -a boids
+	chmod +x build/server/server
+	chmod +x build/server/libimprobable_worker.so
+	spatial alpha cloud upload -a superspatial --force
+	spatial alpha cloud launch -d superspatial -a superspatial
 

@@ -57,6 +57,14 @@ func (DeleteEntityMessage) Type() string {
 }
 
 type ServerScene struct {
+	Host        string
+	Port        int
+	WorkerID    string
+	ProjectName string
+	Locator     string
+	PIT         string
+	LT          string
+
 	spatial  *sos.SpatialSystem
 	phys     PhysicsSystem
 	Entities map[sos.EntityID]interface{}
@@ -78,7 +86,7 @@ func (*ServerScene) Preload() {}
 func (ss *ServerScene) Setup(u engo.Updater) {
 	w, _ := u.(*ecs.World)
 
-	ss.spatial = sos.NewSpatialSystem(ss, "localhost", 7777, "")
+	ss.spatial = sos.NewSpatialSystem(ss, ss.Host, ss.Port, ss.WorkerID, nil)
 	ss.Entities = map[sos.EntityID]interface{}{}
 	ss.ECS = map[uint64]interface{}{}
 	ss.Clients = map[sos.EntityID][]sos.EntityID{}
@@ -178,7 +186,7 @@ func (ServerScene) OnEntityQuery(op sos.EntityQueryOp) {
 func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 	log.Debugf("OnAddCOmponent: %+v %+v", op, op.Component)
 	impWorker, ok := op.Component.(*ImprobableWorker)
-	if ok && impWorker.WorkerType == "Client" {
+	if ok && impWorker.WorkerType == "LauncherClient" {
 		ss.OnClientConnect(op.ID, impWorker.WorkerID)
 	}
 }
