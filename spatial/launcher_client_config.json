@@ -1,0 +1,9 @@
+{
+    "command": "./client.exe",
+    "arguments": [
+        "-locator", "${IMPROBABLE_LOCATOR_HOSTNAME}",
+        "-playerIdentityToken", "${IMPROBABLE_PLAYER_IDENTITY_TOKEN}",
+        "-loginToken", "${IMPROBABLE_LOGIN_TOKEN}",
+        "-project", "${IMPROBABLE_PROJECT_NAME}"
+    ]
+}
