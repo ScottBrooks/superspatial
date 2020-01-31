@@ -5,13 +5,14 @@ import "improbable/standard_library.schema";
 
 component Ship {
 	id = 1000;
-	uint32 current_energy = 1;
-	uint32 max_energy = 2;
+	float current_energy = 1;
+	float max_energy = 2;
 	float cooldown = 3;
+	float charge_rate = 4;
 	
-	list<float> pos = 4;
-	list<float> vel = 5;
-	float angle = 6;
+	list<float> pos = 5;
+	list<float> vel = 6;
+	float angle = 7;
 }
 
 component Bullet {

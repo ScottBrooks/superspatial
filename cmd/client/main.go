@@ -19,8 +19,8 @@ import (
 
 var (
 	scrollSpeed float32 = 700
-	worldWidth  int     = 800
-	worldHeight int     = 600
+	worldWidth  int     = 1024
+	worldHeight int     = 768
 )
 
 type MainMenuScene struct{}
@@ -164,6 +164,7 @@ func main() {
 		Height:         worldHeight,
 		StandardInputs: true,
 		HeadlessMode:   !useGraphics,
+		FPSLimit:       30,
 	}
 	engo.RegisterScene(&cs)
 

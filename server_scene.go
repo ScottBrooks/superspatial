@@ -14,6 +14,8 @@ import (
 	"github.com/ScottBrooks/sos"
 )
 
+var worldBounds = engo.AABB{Max: engo.Point{2048, 1024}}
+
 func init() {
 	log.SetLevel(log.DebugLevel)
 }
@@ -92,7 +94,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 	ss.Clients = map[sos.EntityID][]sos.EntityID{}
 	ss.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 
-	ss.Bounds = engo.AABB{Max: engo.Point{2048, 1024}}
+	ss.Bounds = worldBounds
 
 	ss.CollisionSystem = common.CollisionSystem{Solids: 1}
 
@@ -292,7 +294,7 @@ func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
 	relSphere := QBIRelativeSphereConstraint{Radius: 100}
-	spawnPoint := mgl32.Vec2{rand.Float32() * 2048, rand.Float32() * 1024}
+	spawnPoint := mgl32.Vec2{rand.Float32() * worldBounds.Max.X, rand.Float32() * worldBounds.Max.Y}
 	ent := Ship{
 		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
 		Pos:  ImprobablePosition{Coords: Coordinates{float64(spawnPoint[0]), 0, float64(spawnPoint[1])}},
@@ -312,14 +314,15 @@ func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 			Pos:           spawnPoint.Vec3(0),
 			MaxEnergy:     100,
 			CurrentEnergy: 100,
+			ChargeRate:    10,
 		},
 
 		BasicEntity:        ecs.NewBasic(),
 		CollisionComponent: common.CollisionComponent{Main: 1, Group: 1, Collides: 1 | 2},
 		SpaceComponent: common.SpaceComponent{
 			Position: engo.Point{spawnPoint[0], spawnPoint[1]},
-			Width:    100,
-			Height:   100,
+			Width:    64,
+			Height:   64,
 		},
 	}
 	reqID := ss.spatial.CreateEntity(ent)

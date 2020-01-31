@@ -8,7 +8,6 @@ import (
 	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
 	"github.com/go-gl/mathgl/mgl32"
-	log "github.com/sirupsen/logrus"
 )
 
 type AttackMessage struct {
@@ -40,17 +39,14 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 		1001: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
-	log.Printf("NewBullet: %+v", am)
 
 	pos := am.Pos
 	vel := am.Vel
 	angleRad := float64(mgl32.DegToRad(am.Angle))
-	dir := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
-	if am.Vel.Len() < 100 {
-		offset := am.Vel.Add(dir.Mul(30))
-		pos = pos.Add(offset)
-		vel = vel.Add(dir.Mul(30))
-	}
+	dir := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}.Normalize()
+	offset := dir.Mul(30)
+	pos = pos.Add(offset)
+	vel = vel.Add(dir.Mul(30))
 
 	ent := Bullet{
 		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},

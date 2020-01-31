@@ -90,12 +90,12 @@ type ClientShip struct {
 
 func (cs *ClientShip) Predict(dt float32) {
 
-	cs.ShipComponent.Pos = cs.ShipComponent.Pos.Add(cs.ShipComponent.Vel.Mul(dt))
-	//	aabb := engo.AABB{Max: engo.Point{2048, 1024}}
-	//	cs.ShipComponent.Pos = clampToAABB(cs.ShipComponent.Pos, aabb)
+	// Add 50% of our new position and 50% of our old position.
+	newPos := cs.ShipComponent.Pos.Add(cs.ShipComponent.Vel.Mul(dt))
+	cs.ShipComponent.Pos = cs.ShipComponent.Pos.Mul(0.5).Add(newPos.Mul(0.5))
 
 	cs.SpaceComponent.SetCenter(engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]})
-	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle
+	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle - 90
 }
 
 type Background struct {
@@ -105,9 +105,13 @@ type Background struct {
 }
 
 func (cs *ClientScene) Preload() {
-	engo.Files.Load("Ships/Ship1/Ship1.png")
+	engo.Files.Load("Ships/ship-aqua.png")
+	engo.Files.Load("Ships/ship-blue.png")
+	engo.Files.Load("Ships/ship-green.png")
+	engo.Files.Load("Ships/ship-orange.png")
+	engo.Files.Load("Ships/ship-red.png")
 	engo.Files.Load("Backgrounds/stars.png")
-	engo.Files.Load("Ships/Shots/Shot6/bullet.png")
+	engo.Files.Load("Ships/bullet.png")
 	engo.Files.Load("UI/Upgrade/Health.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_1.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
@@ -172,13 +176,11 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 		},
 		SpaceComponent: common.SpaceComponent{
 			Position: engo.Point{0, 0},
-			Width:    2048,
-			Height:   1024,
+			Width:    worldBounds.Max.X,
+			Height:   worldBounds.Max.Y,
 		},
 	}
 	bg.SetZIndex(0)
-
-	worldBounds := engo.AABB{Max: engo.Point{2048, 1024}}
 
 	cs.Camera.TrackingBounds = worldBounds
 	cs.R.Add(&bg.BasicEntity, &bg.RenderComponent, &bg.SpaceComponent)
@@ -240,7 +242,7 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 
 	ship := ClientShip{BasicEntity: ecs.NewBasic()}
-	texture, err := common.LoadedSprite("Ships/Ship1/Ship1.png")
+	texture, err := common.LoadedSprite("Ships/ship-aqua.png")
 	if err != nil {
 		log.Printf("UNable to load texture: %+v", err)
 	}
@@ -258,7 +260,6 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 	}
 
 	ship.SpaceComponent.SetCenter(spawnPoint)
-	log.Printf("SC: %+v %+v", ship.SpaceComponent, spawnPoint)
 	ship.RenderComponent.SetZIndex(10)
 	cs.R.Add(&ship.BasicEntity, &ship.RenderComponent, &ship.SpaceComponent)
 
@@ -270,7 +271,7 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
 	log.Printf("Got a new bullet:%+v", b)
 	bullet := ClientBullet{BasicEntity: ecs.NewBasic()}
-	texture, err := common.LoadedSprite("Ships/Shots/Shot6/bullet.png")
+	texture, err := common.LoadedSprite("Ships/bullet.png")
 	if err != nil {
 		log.Printf("Unable to load texture: %v", err)
 	}
@@ -313,7 +314,6 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 				cs.Camera.SpaceComponent = &ship.SpaceComponent
 				energyPercent := float32(ship.ShipComponent.CurrentEnergy) / float32(ship.ShipComponent.MaxEnergy)
 
-				log.Printf("SC: %+v %f", ship.ShipComponent, energyPercent)
 				cs.EnergyBar.RenderComponent.Scale.X = energyPercent * 0.6
 			}
 		}

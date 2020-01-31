@@ -61,13 +61,14 @@ func (s *Ship) UpdateCooldown(dt float32) {
 	if s.Ship.Cooldown <= 0 {
 		s.Ship.Cooldown = 0
 	}
+	s.Ship.CurrentEnergy += dt * s.Ship.ChargeRate
+	if s.Ship.CurrentEnergy >= s.Ship.MaxEnergy {
+		s.Ship.CurrentEnergy = s.Ship.MaxEnergy
+	}
 }
 
 func (s *Ship) UpdateAttack(dt float32) {
-	if s.PIC.Attack {
-		log.Printf("Try to do attack: %f", s.Ship.Cooldown)
-	}
-	if s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > s.AttackDamage {
+	if s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > float32(s.AttackDamage) {
 		engo.Mailbox.Dispatch(AttackMessage{
 			Pos:    s.Ship.Pos,
 			Vel:    s.Ship.Vel,
@@ -76,8 +77,8 @@ func (s *Ship) UpdateAttack(dt float32) {
 			Damage: s.AttackDamage,
 		})
 
-		s.Ship.Cooldown = 0.5
-		s.Ship.CurrentEnergy -= s.AttackDamage
+		s.Ship.Cooldown = 0.2
+		s.Ship.CurrentEnergy -= float32(s.AttackDamage)
 	}
 }
 
@@ -87,6 +88,7 @@ func (s *Ship) UpdatePos(dt float32) {
 		accel := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
 		accel = accel.Mul(s.Mass).Mul(dt)
 		s.Ship.Vel = s.Ship.Vel.Add(accel)
+		s.Ship.CurrentEnergy -= dt * (s.Ship.ChargeRate / 2.0)
 
 	}
 	if s.PIC.Back {
@@ -94,6 +96,7 @@ func (s *Ship) UpdatePos(dt float32) {
 		accel := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
 		accel = accel.Mul(s.Mass).Mul(dt)
 		s.Ship.Vel = s.Ship.Vel.Sub(accel)
+		s.Ship.CurrentEnergy -= dt * (s.Ship.ChargeRate / 2.0)
 	}
 	if s.PIC.Left {
 		s.Ship.Angle -= 90.0 * dt
@@ -108,8 +111,7 @@ func (s *Ship) UpdatePos(dt float32) {
 	}
 
 	s.Ship.Pos = s.Ship.Pos.Add(s.Ship.Vel.Mul(dt))
-	aabb := engo.AABB{Max: engo.Point{2048, 1024}}
-	s.Ship.Pos, s.Ship.Vel = clampToAABB(s.Ship.Pos, s.Ship.Vel, aabb)
+	s.Ship.Pos, s.Ship.Vel = clampToAABB(s.Ship.Pos, s.Ship.Vel, worldBounds)
 	s.Pos.Coords.X = float64(s.Ship.Pos[0])
 	s.Pos.Coords.Z = float64(s.Ship.Pos[1])
 
@@ -161,6 +163,6 @@ func (s *Ship) SetupQBI() {
 
 func (s *Ship) TakeDamage(amount uint32) {
 	log.Printf("I'm taking damage: %d", amount)
-	s.Ship.CurrentEnergy -= amount
+	s.Ship.CurrentEnergy -= float32(amount)
 
 }
