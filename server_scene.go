@@ -33,14 +33,14 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 		case *Ship:
 			ent.Update(dt)
 			if ent.HasAuthority {
-				sps.SS.spatial.UpdateComponent(ent.ID, 1000, ent.Ship)
-				sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+				sps.SS.spatial.UpdateComponent(ent.ID, cidShip, ent.Ship)
+				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 			}
 		case *Bullet:
 			ent.Update(dt)
 			if ent.HasAuthority {
-				sps.SS.spatial.UpdateComponent(ent.ID, 1001, ent.Bullet)
-				sps.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+				sps.SS.spatial.UpdateComponent(ent.ID, cidBullet, ent.Bullet)
+				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 				if !sps.SS.InBounds(ent.Bullet.Pos) {
 					log.Printf("Bullet is out of bounds: %d %+v", ent.ID, ent.Bullet.Pos)
 					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: ent.ID})
@@ -195,7 +195,7 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 
 func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 	log.Debugf("OnRemoveComponent: %+v", op)
-	if op.CID == 60 {
+	if op.CID == cidWorker {
 		ss.OnClientDisconnect(op.ID)
 	}
 }
@@ -213,7 +213,7 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 			ss.spatial.UpdateComponent(s.ID, 58, s.Interest)
 		}
 	}
-	if op.CID == 1000 {
+	if op.CID == cidShip {
 		log.Printf("Authority change for ship: %+v", op)
 		e := ss.Entities[op.ID]
 		s, ok := e.(*Ship)
@@ -221,7 +221,7 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 			s.HasAuthority = op.Authority == 1
 		}
 	}
-	if op.CID == 1001 {
+	if op.CID == cidBullet {
 		log.Printf("Authority change for bullet: %+v", op)
 		e := ss.Entities[op.ID]
 		b, ok := e.(*Bullet)
@@ -234,7 +234,7 @@ func (ss *ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	ent, ok := ss.Entities[op.ID].(*Ship)
 	if ok {
 		switch op.CID {
-		case 1003:
+		case cidPlayerInput:
 			ent.PIC = *op.Component.(*PlayerInputComponent)
 		}
 	}
@@ -248,19 +248,19 @@ func (ServerScene) OnCommandResponse(op sos.CommandResponseOp) {
 }
 func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (interface{}, error) {
 	switch CID {
-	case 50:
+	case cidACL:
 		return &ImprobableACL{ComponentWriteAcl: map[uint32]WorkerRequirementSet{}}, nil
-	case 54:
+	case cidPosition:
 		return &ImprobablePosition{}, nil
-	case 60:
+	case cidWorker:
 		return &ImprobableWorker{}, nil
-	case 1000:
+	case cidShip:
 		return &ShipComponent{}, nil
-	case 1001:
+	case cidBullet:
 		return &BulletComponent{}, nil
-	case 1002:
+	case cidGame:
 		return &SpatialGameComponent{}, nil
-	case 1003:
+	case cidPlayerInput:
 		return &PlayerInputComponent{}, nil
 	}
 	return nil, fmt.Errorf("Unimplemented")
@@ -282,49 +282,9 @@ func (ss *ServerScene) OnClientDisconnect(ID sos.EntityID) {
 func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
 	// Create entity,
 	log.Printf("Creating client entity: %s", WorkerID)
-	readAttrSet := []WorkerAttributeSet{
-		{[]string{"position"}},
-		{[]string{"client"}},
-	}
-	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
-	writeAcl := map[uint32]WorkerRequirementSet{
-		1003: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + WorkerID}}}},
-		1000: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		58:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-	}
-	relSphere := QBIRelativeSphereConstraint{Radius: 100}
 	spawnPoint := mgl32.Vec2{rand.Float32() * worldBounds.Max.X, rand.Float32() * worldBounds.Max.Y}
-	ent := Ship{
-		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
-		Pos:  ImprobablePosition{Coords: Coordinates{float64(spawnPoint[0]), 0, float64(spawnPoint[1])}},
-		Meta: ImprobableMetadata{Name: "Client"},
-		Interest: ImprobableInterest{
-			Interest: map[uint32]ComponentInterest{
-				1003: ComponentInterest{
-					Queries: []QBIQuery{
-						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{1000, 54, 53}},
-					},
-				},
-			},
-		},
-		Mass:         1000.0,
-		AttackDamage: 20,
-		Ship: ShipComponent{
-			Pos:           spawnPoint.Vec3(0),
-			MaxEnergy:     100,
-			CurrentEnergy: 100,
-			ChargeRate:    10,
-		},
+	ent := NewShip(spawnPoint, WorkerID)
 
-		BasicEntity:        ecs.NewBasic(),
-		CollisionComponent: common.CollisionComponent{Main: 1, Group: 1, Collides: 1 | 2},
-		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{spawnPoint[0], spawnPoint[1]},
-			Width:    64,
-			Height:   64,
-		},
-	}
 	reqID := ss.spatial.CreateEntity(ent)
 	ss.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 		ent.ID = ID

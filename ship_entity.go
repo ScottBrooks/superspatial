@@ -29,6 +29,54 @@ type Ship struct {
 	HasAuthority bool
 }
 
+func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
+	readAttrSet := []WorkerAttributeSet{
+		{[]string{"position"}},
+		{[]string{"client"}},
+	}
+	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
+	writeAcl := map[uint32]WorkerRequirementSet{
+		cidPlayerInput: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + clientWorkerID}}}},
+		cidShip: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidInterest:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidPosition:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+	}
+	relSphere := QBIRelativeSphereConstraint{Radius: 100}
+
+	ship := Ship{
+		Pos:  ImprobablePosition{Coords: Coordinates{float64(sp[0]), 0, float64(sp[1])}},
+		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},
+		Meta: ImprobableMetadata{Name: "Client"},
+		Interest: ImprobableInterest{
+			Interest: map[uint32]ComponentInterest{
+				cidPlayerInput: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidPosition, cidMetadata}},
+					},
+				},
+			},
+		},
+		Mass:         1000.0,
+		AttackDamage: 20,
+		Ship: ShipComponent{
+			Pos:           sp.Vec3(0),
+			MaxEnergy:     100,
+			CurrentEnergy: 100,
+			ChargeRate:    10,
+		},
+
+		BasicEntity:        ecs.NewBasic(),
+		CollisionComponent: common.CollisionComponent{Main: 1, Group: 1, Collides: 1 | 2},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{sp[0], sp[1]},
+			Width:    64,
+			Height:   64,
+		},
+	}
+
+	return ship
+}
+
 func clampToAABB(pos mgl32.Vec3, vel mgl32.Vec3, aabb engo.AABB) (mgl32.Vec3, mgl32.Vec3) {
 	if pos[0] < aabb.Min.X {
 		pos[0] = aabb.Min.X
@@ -122,8 +170,8 @@ func (s *Ship) UpdatePos(dt float32) {
 
 func (s *Ship) SetupQBI() {
 	ID := int64(s.ID)
-	ShipCID := uint32(1000)
-	BulletCID := uint32(1001)
+	ShipCID := uint32(cidShip)
+	BulletCID := uint32(cidBullet)
 	//relConstraint := QBIRelativeSphereConstraint{Radius: 100}
 	relConstraint := QBIRelativeBoxConstraint{
 		Edge: EdgeLength{X: 800, Y: 30000, Z: 300},
@@ -149,9 +197,9 @@ func (s *Ship) SetupQBI() {
 	}
 	qbi := ImprobableInterest{
 		Interest: map[uint32]ComponentInterest{
-			1003: ComponentInterest{
+			cidPlayerInput: ComponentInterest{
 				Queries: []QBIQuery{
-					{Constraint: constraint, ResultComponents: []uint32{1000, 1001, 54}},
+					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidBullet, cidPosition}},
 				},
 			},
 		},

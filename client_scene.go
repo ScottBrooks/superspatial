@@ -56,12 +56,9 @@ func (pis *PlayerInputSystem) Update(dt float32) {
 	p.Forward = engo.Input.Button("Up").Down()
 	p.Back = engo.Input.Button("Down").Down()
 	p.Attack = engo.Input.Button("Space").Down()
-	if p.Attack {
-		log.Printf("Set attack")
-	}
 
 	if pis.ID != 0 {
-		pis.spatial.UpdateComponent(pis.ID, 1003, p)
+		pis.spatial.UpdateComponent(pis.ID, cidPlayerInput, p)
 	}
 
 }
@@ -301,7 +298,7 @@ func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
 func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	cs.ServerScene.OnComponentUpdate(op)
 
-	if op.CID == 1000 {
+	if op.CID == cidShip {
 		s, ok := op.Component.(*ShipComponent)
 		if !ok {
 			log.Printf("Expected ShipComponent but not found")
@@ -319,7 +316,7 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 		}
 
 	}
-	if op.CID == 1001 {
+	if op.CID == cidBullet {
 		b, ok := op.Component.(*BulletComponent)
 		if !ok {
 			log.Printf("Expected Bullet component but not found")
@@ -333,7 +330,7 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 	cs.ServerScene.OnAddComponent(op)
 
-	if op.CID == 1000 {
+	if op.CID == cidShip {
 		s, ok := op.Component.(*ShipComponent)
 		if !ok {
 			log.Printf("Expected ShipComponent but not found")
@@ -342,7 +339,7 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 		cs.EntToEcs[op.ID] = ship.ID()
 		cs.Ships[op.ID] = ship
 	}
-	if op.CID == 1001 {
+	if op.CID == cidBullet {
 		b, ok := op.Component.(*BulletComponent)
 		if !ok {
 			log.Printf("Expected BulletComponent but not found")
@@ -361,14 +358,14 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 func (cs *ClientScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 	cs.ServerScene.OnRemoveComponent(op)
 
-	if op.CID == 1001 {
+	if op.CID == cidBullet {
 		engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
 	}
 }
 
 func (cs *ClientScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 	log.Printf("AUthChanged: %+v", op)
-	if op.CID == 1003 && op.Authority == 1 {
+	if op.CID == cidPlayerInput && op.Authority == 1 {
 		cs.PIS.ID = op.ID
 	}
 }

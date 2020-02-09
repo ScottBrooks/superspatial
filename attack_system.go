@@ -36,8 +36,8 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
 	writeAcl := map[uint32]WorkerRequirementSet{
-		1001: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		54:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidBullet:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidPosition: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
 	}
 
 	pos := am.Pos
@@ -98,8 +98,8 @@ func (as *AttackSystem) Update(dt float32) {
 	for _, ent := range as.Entities {
 		ent.Update(dt)
 		if ent.HasAuthority {
-			as.SS.spatial.UpdateComponent(ent.ID, 1001, ent.Bullet)
-			as.SS.spatial.UpdateComponent(ent.ID, 54, ent.Pos)
+			as.SS.spatial.UpdateComponent(ent.ID, cidBullet, ent.Bullet)
+			as.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 		}
 	}
 }
