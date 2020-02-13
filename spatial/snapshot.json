@@ -1,6 +1,6 @@
 	{
 		"__entity_id": "1", 
-		"superspatial.Game": {}, 
+		"superspatial.Balancer": {}, 
 		"improbable.Position": {
 			"coords": {
 				"x": 0,
@@ -11,62 +11,31 @@
 		"improbable.EntityAcl": {
 			"component_write_acl": [
 				{
-					"key": 54,
-					"value": {
-						"attribute_set": [
-							{
-								"attribute": ["position"]
-							}
-						]
-					}
-				},
-				{
 					"key": 50,
 					"value": {
 						"attribute_set": [
 							{
-								"attribute": ["position"]
+								"attribute": ["balancer"]
 							}
 						]
 					}
 				},
-				{
-					"key": 1002,
-					"value": {
-						"attribute_set": [
-							{
-								"attribute": ["position"]
-							}
-						]
-					}
-				},
-				{
-					"key": 1000,
-					"value": {
-						"attribute_set": [
-							{
-								"attribute": ["position"]
-							}
-						]
-					}
-				},
-				{
-					"key": 1001,
-					"value": {
-						"attribute_set": [
-							{
-								"attribute": ["position"]
-							}
-						]
-					}
-				},
-
 				{
 					"key": 58,
 					"value": {
 						"attribute_set": [
 							{
-								"attribute": ["position"]
+								"attribute": ["balancer"]
+							}
+						]
+					}
+				},
+				{
+					"key": 1004,
+					"value": {
+						"attribute_set": [
+							{
+								"attribute": ["balancer"]
 							}
 						]
 					}
@@ -76,20 +45,24 @@
 			"read_acl": {
 				"attribute_set": [
 					{
-						"attribute": ["position"]
+						"attribute": ["balancer"]
+					},
+					{
+						"attribute": ["client"]
 					}
+
 				]
 			}
 
 		},
 		"improbable.Persistence": {},
 		"improbable.Metadata": {
-			"entity_type": "Game Tracker"
+			"entity_type": "Load Balancer"
 		},
 		"improbable.Interest": {
 			"component_interest": [
 				{
-					"key": 1002,
+					"key": 1004,
 					"value": {
 						"queries": [
 							{"constraint": {
@@ -109,7 +82,7 @@
 							"result_component_id": [60]
 							},
 							{"constraint": {
-								"component_constraint": [1003],
+								"component_constraint": [54],
 								"sphere_constraint": [],
 								"cylinder_constraint": [],
 								"box_constraint": [],
@@ -122,13 +95,11 @@
 							},
 							"full_snapshot_result": [],
 							"frequency": [],
-							"result_component_id": [1003, 53]
+							"result_component_id": [50,58,54]
 							}
-
 						]
 					}
 				}
 			]
-
 		}
 	}

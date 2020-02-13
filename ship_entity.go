@@ -8,7 +8,6 @@ import (
 	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
 	"github.com/go-gl/mathgl/mgl32"
-	log "github.com/sirupsen/logrus"
 )
 
 type Ship struct {
@@ -23,6 +22,7 @@ type Ship struct {
 	Meta     ImprobableMetadata   `sos:"53"`
 	Interest ImprobableInterest   `sos:"58"`
 	Ship     ShipComponent        `sos:"1000"`
+	Worker   WorkerComponent      `sos:"1005"`
 
 	Mass         float32
 	AttackDamage uint32
@@ -36,12 +36,15 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
 	writeAcl := map[uint32]WorkerRequirementSet{
-		cidPlayerInput: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + clientWorkerID}}}},
-		cidShip: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		cidInterest:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		cidPosition:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidPlayerInput:    WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + clientWorkerID}}}},
+		cidShip:           WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidInterest:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidPosition:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidACL:            WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidWorkerBalancer: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 	}
 	relSphere := QBIRelativeSphereConstraint{Radius: 100}
+	playerInputCID := uint32(cidPlayerInput)
 
 	ship := Ship{
 		Pos:  ImprobablePosition{Coords: Coordinates{float64(sp[0]), 0, float64(sp[1])}},
@@ -51,7 +54,12 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 			Interest: map[uint32]ComponentInterest{
 				cidPlayerInput: ComponentInterest{
 					Queries: []QBIQuery{
-						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidPosition, cidMetadata}},
+						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidPosition, cidMetadata, cidWorkerBalancer}},
+					},
+				},
+				cidShip: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: QBIConstraint{ComponentIDConstraint: &playerInputCID}, ResultComponents: []uint32{cidPlayerInput}},
 					},
 				},
 			},

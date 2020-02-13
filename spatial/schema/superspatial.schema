@@ -38,3 +38,11 @@ component PlayerInput {
 	bool attack = 5;
 }
 
+component Balancer {
+	id = 1004;
+}
+
+component Worker {
+	id = 1005;
+	int32 worker_id = 1;
+}

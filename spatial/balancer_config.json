@@ -1,0 +1,43 @@
+{
+	"workerType": "Balancer",
+	"layer": "balancer",
+	"permissions": {
+		"entity_creation": {
+			"allow": true
+		},
+		"entity_deletion": {
+			"allow": true
+		},
+		"entity_query": {
+			"allow": true,
+			"components": [
+				"*"
+			]
+		},
+		"system_entity_command": {
+			"allow": true
+		}
+	},
+	"launchConfiguration": {
+		"cloudDeployment": {
+			"linux": {
+				"localBuildDirectory": "build/balancer",
+				"command": "./launch.sh",
+				"arguments": [
+					"-host",
+					"${IMPROBABLE_RECEPTIONIST_HOST}",
+					"-port",
+					"${IMPROBABLE_RECEPTIONIST_PORT}",
+					"-worker",
+					"${IMPROBABLE_WORKER_ID}"
+				]
+			}
+		}
+
+	},
+	"componentDelivery": {
+		"default": "RELIABLE_ORDERED",
+		"checkoutAllInitially": false,
+		"override": {}
+	}
+}

@@ -2,11 +2,10 @@ package superspatial
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 
 	"github.com/go-gl/mathgl/mgl32"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -15,9 +14,11 @@ import (
 )
 
 var worldBounds = engo.AABB{Max: engo.Point{2048, 1024}}
+var logger = logrus.New()
+var log = logrus.NewEntry(logger)
 
 func init() {
-	log.SetLevel(log.DebugLevel)
+	logger.SetLevel(logrus.DebugLevel)
 }
 
 type SpatialPumpSystem struct {
@@ -62,6 +63,7 @@ type ServerScene struct {
 	Host        string
 	Port        int
 	WorkerID    string
+	Development bool
 	ProjectName string
 	Locator     string
 	PIT         string
@@ -87,6 +89,8 @@ type ServerScene struct {
 func (*ServerScene) Preload() {}
 func (ss *ServerScene) Setup(u engo.Updater) {
 	w, _ := u.(*ecs.World)
+
+	log = log.WithField("worker", ss.WorkerType())
 
 	ss.spatial = sos.NewSpatialSystem(ss, ss.Host, ss.Port, ss.WorkerID, nil)
 	ss.Entities = map[sos.EntityID]interface{}{}
@@ -116,7 +120,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 		if ok {
 			ship, foundShip := ss.ECS[collision.To.ID()].(*Ship)
 			bullet, foundBullet := ss.ECS[collision.Entity.ID()].(*Bullet)
-			log.Printf("FS: %v FB: %v", foundShip, foundBullet)
+			//log.Printf("FS: %v FB: %v", foundShip, foundBullet)
 			if foundShip && foundBullet && bullet.Bullet.ShipID != ship.ID {
 				w.RemoveEntity(bullet.BasicEntity)
 				engo.Mailbox.Dispatch(DeleteEntityMessage{ID: bullet.ID})
@@ -187,9 +191,19 @@ func (ServerScene) OnEntityQuery(op sos.EntityQueryOp) {
 
 func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 	log.Debugf("OnAddCOmponent: %+v %+v", op, op.Component)
-	impWorker, ok := op.Component.(*ImprobableWorker)
-	if ok && impWorker.WorkerType == "LauncherClient" {
-		ss.OnClientConnect(op.ID, impWorker.WorkerID)
+	/*
+		impWorker, ok := op.Component.(*ImprobableWorker)
+		if ok && impWorker.WorkerType == "LauncherClient" {
+			ss.OnClientConnect(op.ID, impWorker.WorkerID)
+		}
+	*/
+	if op.CID == cidShip {
+		log.Printf("Making a new ship")
+		ent := NewShip(mgl32.Vec2{}, "")
+		ent.ID = op.ID
+		ss.Entities[op.ID] = &ent
+		ss.ECS[ent.BasicEntity.ID()] = &ent
+		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
 	}
 }
 
@@ -230,10 +244,13 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 		}
 	}
 }
+
 func (ss *ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	ent, ok := ss.Entities[op.ID].(*Ship)
 	if ok {
 		switch op.CID {
+		case cidShip:
+			ent.Ship = *op.Component.(*ShipComponent)
 		case cidPlayerInput:
 			ent.PIC = *op.Component.(*PlayerInputComponent)
 		}
@@ -262,6 +279,8 @@ func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (int
 		return &SpatialGameComponent{}, nil
 	case cidPlayerInput:
 		return &PlayerInputComponent{}, nil
+	case cidWorkerBalancer:
+		return &WorkerComponent{}, nil
 	}
 	return nil, fmt.Errorf("Unimplemented")
 }
@@ -276,22 +295,4 @@ func (ss *ServerScene) OnClientDisconnect(ID sos.EntityID) {
 		delete(ss.Clients, ID)
 	}
 
-}
-
-// OnClientConnect is called once a worker has connected, and we should create them an entity with a player input component.
-func (ss *ServerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
-	// Create entity,
-	log.Printf("Creating client entity: %s", WorkerID)
-	spawnPoint := mgl32.Vec2{rand.Float32() * worldBounds.Max.X, rand.Float32() * worldBounds.Max.Y}
-	ent := NewShip(spawnPoint, WorkerID)
-
-	reqID := ss.spatial.CreateEntity(ent)
-	ss.OnCreateFunc[reqID] = func(ID sos.EntityID) {
-		ent.ID = ID
-		ent.SetupQBI()
-		ss.Entities[ID] = &ent
-		ss.ECS[ent.BasicEntity.ID()] = &ent
-		ss.Clients[ClientID] = []sos.EntityID{ID}
-		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
-	}
 }

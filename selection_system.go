@@ -2,7 +2,6 @@ package superspatial
 
 import (
 	"image/color"
-	"log"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -57,5 +56,3 @@ func (ss *SelectionSystem) Add(e *ecs.BasicEntity, rc *common.RenderComponent, e
 	ss.selectables = append(ss.selectables, selectable{e, rc, exec})
 
 }
-
-

@@ -6,6 +6,7 @@ require (
 	github.com/ScottBrooks/sos v0.0.0
 	github.com/go-gl/mathgl v0.0.0-20180804195959-cdf14b6b8f8a
 	github.com/sirupsen/logrus v1.4.2
+	golang.org/x/image v0.0.0-20200119044424-58c23975cae1
 )
 
 replace github.com/ScottBrooks/sos => ../sos

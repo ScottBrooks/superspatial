@@ -7,7 +7,8 @@
     "./client_config.json"
   ],
   "serverWorkers": [
-    "./server_config.json"
+    "./server_config.json",
+    "./balancer_config.json"
   ],
   "defaultSnapshotUploadFilepath": "snapshots/default.snapshot"
 }

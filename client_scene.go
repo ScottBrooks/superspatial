@@ -1,11 +1,14 @@
 package superspatial
 
 import (
+	"bytes"
+	"fmt"
+	"image/color"
+
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
 	"github.com/EngoEngine/engo/common"
-
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/image/font/gofont/gosmallcaps"
 
 	"github.com/ScottBrooks/sos"
 )
@@ -36,6 +39,7 @@ type ClientScene struct {
 	HS        HudSystem
 	HUDPos    engo.Point
 	EnergyBar MenuSprite
+	Font      *common.Font
 
 	EntToEcs map[sos.EntityID]uint64
 	Ships    map[sos.EntityID]*ClientShip
@@ -77,12 +81,20 @@ func (cb *ClientBullet) Predict(dt float32) {
 	cb.SpaceComponent.SetCenter(engo.Point{cb.BulletComponent.Pos[0], cb.BulletComponent.Pos[1]})
 }
 
+type Text struct {
+	ecs.BasicEntity
+	common.SpaceComponent
+	common.RenderComponent
+}
+
 type ClientShip struct {
 	ecs.BasicEntity
 	common.RenderComponent
 	common.SpaceComponent
+	text Text
 
 	ShipComponent
+	WorkerComponent
 }
 
 func (cs *ClientShip) Predict(dt float32) {
@@ -93,6 +105,8 @@ func (cs *ClientShip) Predict(dt float32) {
 
 	cs.SpaceComponent.SetCenter(engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]})
 	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle - 90
+	cs.text.SpaceComponent = cs.SpaceComponent
+	cs.text.SpaceComponent.Rotation = 0
 }
 
 type Background struct {
@@ -113,6 +127,7 @@ func (cs *ClientScene) Preload() {
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_1.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_3.png")
+	engo.Files.LoadReaderData("go.ttf", bytes.NewReader(gosmallcaps.TTF))
 
 }
 
@@ -157,6 +172,13 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 			cs.CS = ent
 		}
 	}
+
+	cs.Font = &common.Font{
+		URL:  "go.ttf",
+		FG:   color.White,
+		Size: 24,
+	}
+	cs.Font.CreatePreloaded()
 	// Once we have found our camera system, hook up our hud system
 	cs.HS = HudSystem{Pos: &cs.HUDPos, Camera: cs.CS}
 	w.AddSystem(&cs.HS)
@@ -256,9 +278,20 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 		Height: texture.Height() * ship.RenderComponent.Scale.Y,
 	}
 
+	ship.text = Text{BasicEntity: ecs.NewBasic()}
+	ship.text.RenderComponent.Drawable = common.Text{
+		Font: cs.Font,
+		Text: "Ship",
+	}
+	ship.text.SpaceComponent = ship.SpaceComponent
+	ship.text.RenderComponent.SetZIndex(11)
+
 	ship.SpaceComponent.SetCenter(spawnPoint)
 	ship.RenderComponent.SetZIndex(10)
+
 	cs.R.Add(&ship.BasicEntity, &ship.RenderComponent, &ship.SpaceComponent)
+
+	cs.R.Add(&ship.text.BasicEntity, &ship.text.RenderComponent, &ship.text.SpaceComponent)
 
 	cs.CPS.Add(&ship)
 
@@ -323,12 +356,28 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 		}
 		bullet := cs.Bullets[op.ID]
 		bullet.BulletComponent = *b
-
+	}
+	if op.CID == cidWorkerBalancer {
+		wc, ok := op.Component.(*WorkerComponent)
+		log.Printf("Got a WC: %+v", wc)
+		if !ok {
+			log.Printf("Expected worker balancer component found")
+		}
+		ship, ok := cs.Ships[op.ID]
+		if ok {
+			if ship.WorkerComponent.WorkerID != wc.WorkerID {
+				ship.text.RenderComponent.Drawable = common.Text{
+					Font: cs.Font,
+					Text: fmt.Sprintf("Worker: %d", wc.WorkerID),
+				}
+			}
+			ship.WorkerComponent = *wc
+		}
 	}
 }
 
 func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
-	cs.ServerScene.OnAddComponent(op)
+	//cs.ServerScene.OnAddComponent(op)
 
 	if op.CID == cidShip {
 		s, ok := op.Component.(*ShipComponent)
