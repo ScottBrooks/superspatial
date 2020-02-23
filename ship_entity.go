@@ -33,17 +33,18 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 	readAttrSet := []WorkerAttributeSet{
 		{[]string{"position"}},
 		{[]string{"client"}},
+		{[]string{"balancer"}},
 	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
 	writeAcl := map[uint32]WorkerRequirementSet{
 		cidPlayerInput:    WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"workerId:" + clientWorkerID}}}},
-		cidShip:           WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidShip:           WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidInterest:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidPosition:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidACL:            WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidWorkerBalancer: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 	}
-	relSphere := QBIRelativeSphereConstraint{Radius: 100}
+	relSphere := QBIRelativeSphereConstraint{Radius: 300}
 	playerInputCID := uint32(cidPlayerInput)
 
 	ship := Ship{
@@ -54,7 +55,7 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 			Interest: map[uint32]ComponentInterest{
 				cidPlayerInput: ComponentInterest{
 					Queries: []QBIQuery{
-						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidPosition, cidMetadata, cidWorkerBalancer}},
+						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidBullet, cidPosition, cidMetadata, cidWorkerBalancer}},
 					},
 				},
 				cidShip: ComponentInterest{

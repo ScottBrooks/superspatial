@@ -32,6 +32,7 @@ type WorkerComponent struct {
 
 type balancedEntity struct {
 	ID     sos.EntityID
+	ACL    ImprobableACL      `sos:"50"`
 	Pos    ImprobablePosition `sos:"54"`
 	Worker WorkerComponent    `sos:"1005"`
 
@@ -61,8 +62,19 @@ func (bs *BalancerScene) Setup(u engo.Updater) {
 }
 func (*BalancerScene) Type() string { return "Balancer" }
 
+func (bs *BalancerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
+	// Gained authority over the ACL: adjust acl for the correct worker
+	if op.Authority == 1 && op.CID == cidACL {
+		bs.checkEntityBounds()
+	}
+}
+
+func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
+	bs.Entities[op.ID] = &balancedEntity{ID: op.ID, Worker: WorkerComponent{-1}}
+}
+
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
-	log.Debugf("OnAddCOmponent: %+v %+v", op, op.Component)
+	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
 	impWorker, ok := op.Component.(*ImprobableWorker)
 	if ok && impWorker.WorkerType == "LauncherClient" {
 		if bs.needsMoreWorkers() {
@@ -80,9 +92,25 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 		reqID := bs.spatial.CreateEntity(ent)
 		bs.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 			ent.ID = ID
-			log.Printf("Creaet complete")
+			log.Printf("Create complete")
 			bs.Workers = append(bs.Workers, balancedWorker{WorkerID: impWorker.WorkerID, WorkerEntityID: op.ID, ID: ID})
+
+			bs.checkEntityBounds()
 		}
+	}
+	if op.CID == cidACL {
+		bs.Entities[op.ID].ACL = *op.Component.(*ImprobableACL)
+	}
+	if op.CID == cidBullet {
+		log.Printf("It's a bullet")
+
+	}
+}
+
+func (bs *BalancerScene) OnDeleteEntity(op sos.DeleteEntityOp) {
+	if bs.Entities[op.ID] != nil {
+		log.Printf("Deleting entity: %d", op.ID)
+		delete(bs.Entities, op.ID)
 	}
 }
 func (bs *BalancerScene) OnCreateEntity(op sos.CreateEntityOp) {
@@ -103,10 +131,20 @@ func (bs *BalancerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 		pos, ok := op.Component.(*ImprobablePosition)
 		if ok {
 			ent, ok := bs.Entities[op.ID]
+			//log.Printf("Component update for: %d", op.ID)
 			if ok {
 				ent.Pos = *pos
 			}
 			bs.checkEntityBounds()
+		}
+	case cidACL:
+		acl, ok := op.Component.(*ImprobableACL)
+		if ok {
+			ent, ok := bs.Entities[op.ID]
+			if ok {
+				log.Warnf("Updating ACL on entity: %d, %+v", op.ID, *acl)
+				ent.ACL = *acl
+			}
 		}
 	}
 }
@@ -116,10 +154,27 @@ func (bs *BalancerScene) WorkerType() string { return bs.WorkerTypeName }
 func aabbContains(aabb engo.AABB, pt Coordinates) bool {
 	return aabb.Min.X <= float32(pt.X) && aabb.Max.X > float32(pt.X) && aabb.Min.Y <= float32(pt.Z) && aabb.Max.Y > float32(pt.Z)
 }
+func (bs *BalancerScene) adjustAcl(i int, e *balancedEntity, w balancedWorker) {
+	log.Printf("Moving Entity %d from Worker: %d to %d", e.ID, e.Worker.WorkerID, i)
+	e.Worker.WorkerID = int32(i)
+	bs.spatial.UpdateComponent(e.ID, cidWorkerBalancer, e.Worker)
+
+	workerID := "workerId:" + w.WorkerID
+
+	// Update our ACL entries that varry per worker.
+	for _, cid := range []uint32{cidShip, cidBullet, cidPosition} {
+		if _, ok := e.ACL.ComponentWriteAcl[cid]; ok {
+			e.ACL.ComponentWriteAcl[cid] = WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}}
+		}
+	}
+
+	log.Printf("Updating ACL: %+v", e.ACL)
+
+	bs.spatial.UpdateComponent(e.ID, cidACL, e.ACL)
+}
 
 func (bs *BalancerScene) checkEntityBounds() {
-	for id, e := range bs.Entities {
-
+	for _, e := range bs.Entities {
 		needsAdjustment := true
 		if e.Worker.WorkerID >= 0 && int(e.Worker.WorkerID) < len(bs.Workers) {
 			worker := bs.Workers[e.Worker.WorkerID]
@@ -132,36 +187,9 @@ func (bs *BalancerScene) checkEntityBounds() {
 		if needsAdjustment {
 			for i, w := range bs.Workers {
 				if aabbContains(w.AABB, e.Pos.Coords) {
-					log.Printf("Moving Entity %d %d from Worker: %d to %d", id, e.ID, e.Worker.WorkerID, i)
-					e.Worker.WorkerID = int32(i)
-					bs.spatial.UpdateComponent(e.ID, cidWorkerBalancer, e.Worker)
-
-					workerID := "workerId:" + w.WorkerID
-					clientWorkerID := "workerId:" + e.Client
-
-					readAttrSet := []WorkerAttributeSet{
-						{[]string{"position"}},
-						{[]string{"client"}},
-						{[]string{"balancer"}},
-					}
-					readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
-					writeAcl := map[uint32]WorkerRequirementSet{
-						cidShip:        WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}},
-						cidPosition:    WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}},
-						cidPlayerInput: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{clientWorkerID}}}},
-						//cidBullet: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}},
-						// Leave interest write authority for now so things keep working.  This should move to the balancer though
-						cidACL:            WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-						cidInterest:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-						cidWorkerBalancer: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-					}
-
-					acl := ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}
-					log.Printf("Updating ACL: %+v", acl)
-
-					bs.spatial.UpdateComponent(e.ID, cidACL, acl)
+					bs.adjustAcl(i, e, w)
 				} else {
-					log.Printf("Worker %+v does not contain %v", w, e.Pos.Coords)
+					//log.Printf("Worker %+v does not contain %v", w, e.Pos.Coords)
 				}
 			}
 		}
@@ -247,7 +275,7 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 
 	boxConstraint := QBIBoxConstraint{
 		Center: Coordinates{X: float64(bounds.Min.X) + float64(bounds.Max.X-bounds.Min.X)/2, Y: 0, Z: float64(bounds.Min.Y) + float64(bounds.Max.Y-bounds.Min.Y)/2},
-		Edge:   EdgeLength{X: float64(bounds.Max.X - bounds.Min.X), Y: 10000, Z: float64(bounds.Max.Y - bounds.Min.Y)},
+		Edge:   EdgeLength{X: float64(bounds.Max.X-bounds.Min.X) * 1.1, Y: 10000, Z: float64(bounds.Max.Y-bounds.Min.Y) * 1.1},
 	}
 
 	constraint := QBIConstraint{
@@ -289,7 +317,6 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 func NewServerWorker() balancedWorker {
 
 	readAttrSet := []WorkerAttributeSet{
-		{[]string{"client"}},
 		{[]string{"balancer"}},
 	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
@@ -297,11 +324,6 @@ func NewServerWorker() balancedWorker {
 		cidACL:      WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidInterest: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidPosition: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-		/*
-			cidBullet: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-			// Leave interest write authority for now so things keep working.  This should move to the balancer though
-			cidPosition: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
-		*/
 	}
 	worker := balancedWorker{
 		ACL:  ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl},

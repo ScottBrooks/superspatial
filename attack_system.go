@@ -33,11 +33,15 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 	readAttrSet := []WorkerAttributeSet{
 		{[]string{"position"}},
 		{[]string{"client"}},
+		{[]string{"balancer"}},
 	}
 	readAcl := WorkerRequirementSet{AttributeSet: readAttrSet}
 	writeAcl := map[uint32]WorkerRequirementSet{
-		cidBullet:   WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
-		cidPosition: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"position"}}}},
+		cidBullet:         WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidPosition:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidACL:            WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidInterest:       WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
+		cidWorkerBalancer: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 	}
 
 	pos := am.Pos

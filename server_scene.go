@@ -40,6 +40,7 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 		case *Bullet:
 			ent.Update(dt)
 			if ent.HasAuthority {
+				log.Printf("Updating bullet and position")
 				sps.SS.spatial.UpdateComponent(ent.ID, cidBullet, ent.Bullet)
 				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 				if !sps.SS.InBounds(ent.Bullet.Pos) {
@@ -205,6 +206,15 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
 	}
+	if op.CID == cidBullet {
+		log.Printf("Making a new bullet")
+		ent := Bullet{}
+		ent.ID = op.ID
+		ss.Entities[op.ID] = &ent
+		ss.ECS[ent.BasicEntity.ID()] = &ent
+		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
+
+	}
 }
 
 func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
@@ -246,13 +256,20 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 }
 
 func (ss *ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
-	ent, ok := ss.Entities[op.ID].(*Ship)
+	shipEnt, ok := ss.Entities[op.ID].(*Ship)
 	if ok {
 		switch op.CID {
 		case cidShip:
-			ent.Ship = *op.Component.(*ShipComponent)
+			shipEnt.Ship = *op.Component.(*ShipComponent)
 		case cidPlayerInput:
-			ent.PIC = *op.Component.(*PlayerInputComponent)
+			shipEnt.PIC = *op.Component.(*PlayerInputComponent)
+		}
+	}
+	bulletEnt, ok := ss.Entities[op.ID].(*Bullet)
+	if ok {
+		switch op.CID {
+		case cidBullet:
+			bulletEnt.Bullet = *op.Component.(*BulletComponent)
 		}
 	}
 }

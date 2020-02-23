@@ -16,6 +16,7 @@ type Bullet struct {
 	Meta   ImprobableMetadata `sos:"53"`
 	Pos    ImprobablePosition `sos:"54"`
 	Bullet BulletComponent    `sos:"1001"`
+	Worker WorkerComponent    `sos:"1005"`
 
 	HasAuthority bool
 }
