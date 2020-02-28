@@ -1,0 +1,9 @@
+{
+	"workerType": "Bot",
+	"layer": "client",
+	"uploadConfiguration": {
+		"windows": {
+			"localBuildDirectory": "build/bot"
+		}
+	}
+}

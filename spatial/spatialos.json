@@ -4,7 +4,8 @@
   "schemaDescriptor": "./schema/bin/schema.descriptor",
   "launchConfiguration": "./launch_configs/deployment.json",
   "clientWorkers": [
-    "./client_config.json"
+    "./client_config.json",
+    "./bot_config.json"
   ],
   "serverWorkers": [
     "./server_config.json",

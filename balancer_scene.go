@@ -76,7 +76,8 @@ func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
 	impWorker, ok := op.Component.(*ImprobableWorker)
-	if ok && impWorker.WorkerType == "LauncherClient" {
+	log.Printf("WorkerType: %+v", impWorker)
+	if ok && (impWorker.WorkerType == "LauncherClient" || impWorker.WorkerType == "Bot") {
 		if bs.needsMoreWorkers() {
 			bs.startWorker()
 			time.Sleep(2 * time.Second)

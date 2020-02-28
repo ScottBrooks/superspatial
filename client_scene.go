@@ -247,6 +247,7 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 			ship, foundShip := cs.Ships[delete.ID]
 			if foundShip {
 				w.RemoveEntity(ship.BasicEntity)
+				w.RemoveEntity(ship.text.BasicEntity)
 			}
 			bullet, foundBullet := cs.Bullets[delete.ID]
 			if foundBullet {
@@ -404,12 +405,15 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 
 }
 
+func (cs *ClientScene) OnRemoveEntity(op sos.RemoveEntityOp) {
+	cs.ServerScene.OnRemoveEntity(op)
+
+	engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
+}
+
 func (cs *ClientScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 	cs.ServerScene.OnRemoveComponent(op)
 
-	if op.CID == cidBullet {
-		engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
-	}
 }
 
 func (cs *ClientScene) OnAuthorityChange(op sos.AuthorityChangeOp) {

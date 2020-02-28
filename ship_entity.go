@@ -44,7 +44,10 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 		cidACL:            WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 		cidWorkerBalancer: WorkerRequirementSet{[]WorkerAttributeSet{{[]string{"balancer"}}}},
 	}
-	relSphere := QBIRelativeSphereConstraint{Radius: 300}
+	relConstraint := QBIRelativeBoxConstraint{
+		Edge: EdgeLength{X: 1024 * 1.5, Y: 30000, Z: 768 * 1.5},
+	}
+
 	playerInputCID := uint32(cidPlayerInput)
 
 	ship := Ship{
@@ -55,7 +58,7 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 			Interest: map[uint32]ComponentInterest{
 				cidPlayerInput: ComponentInterest{
 					Queries: []QBIQuery{
-						{Constraint: QBIConstraint{RelativeSphereConstraint: &relSphere}, ResultComponents: []uint32{cidShip, cidBullet, cidPosition, cidMetadata, cidWorkerBalancer}},
+						{Constraint: QBIConstraint{RelativeBoxConstraint: &relConstraint}, ResultComponents: []uint32{cidShip, cidBullet, cidPosition, cidMetadata, cidWorkerBalancer}},
 					},
 				},
 				cidShip: ComponentInterest{
@@ -178,44 +181,46 @@ func (s *Ship) UpdatePos(dt float32) {
 }
 
 func (s *Ship) SetupQBI() {
-	ID := int64(s.ID)
-	ShipCID := uint32(cidShip)
-	BulletCID := uint32(cidBullet)
-	//relConstraint := QBIRelativeSphereConstraint{Radius: 100}
-	relConstraint := QBIRelativeBoxConstraint{
-		Edge: EdgeLength{X: 800, Y: 30000, Z: 300},
-	}
-	constraint := QBIConstraint{
-		OrConstraint: []QBIConstraint{
-			// EntiyID is our entity id
-			QBIConstraint{EntityIDConstraint: &ID},
-			// OR
-			QBIConstraint{
-				// It's in our relative sphere AND it's ShipComponent or Bullet component
-				AndConstraint: []QBIConstraint{
-					QBIConstraint{RelativeBoxConstraint: &relConstraint},
-					QBIConstraint{
-						OrConstraint: []QBIConstraint{
-							QBIConstraint{ComponentIDConstraint: &ShipCID},
-							QBIConstraint{ComponentIDConstraint: &BulletCID},
+	/*
+		ID := int64(s.ID)
+		ShipCID := uint32(cidShip)
+		BulletCID := uint32(cidBullet)
+		//relConstraint := QBIRelativeSphereConstraint{Radius: 100}
+		relConstraint := QBIRelativeBoxConstraint{
+			Edge: EdgeLength{X: 800, Y: 30000, Z: 300},
+		}
+		constraint := QBIConstraint{
+			OrConstraint: []QBIConstraint{
+				// EntiyID is our entity id
+				QBIConstraint{EntityIDConstraint: &ID},
+				// OR
+				QBIConstraint{
+					// It's in our relative sphere AND it's ShipComponent or Bullet component
+					AndConstraint: []QBIConstraint{
+						QBIConstraint{RelativeBoxConstraint: &relConstraint},
+						QBIConstraint{
+							OrConstraint: []QBIConstraint{
+								QBIConstraint{ComponentIDConstraint: &ShipCID},
+								QBIConstraint{ComponentIDConstraint: &BulletCID},
+							},
 						},
 					},
 				},
 			},
-		},
-	}
-	qbi := ImprobableInterest{
-		Interest: map[uint32]ComponentInterest{
-			cidPlayerInput: ComponentInterest{
-				Queries: []QBIQuery{
-					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidBullet, cidPosition}},
+		}
+		qbi := ImprobableInterest{
+			Interest: map[uint32]ComponentInterest{
+				cidPlayerInput: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: constraint, ResultComponents: []uint32{cidShip, cidBullet, cidPosition}},
+					},
 				},
 			},
-		},
-	}
+		}
 
-	s.Interest = qbi
+		s.Interest = qbi
 
+	*/
 }
 
 func (s *Ship) TakeDamage(amount uint32) {
