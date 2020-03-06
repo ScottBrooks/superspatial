@@ -217,9 +217,8 @@ func (bs *BalancerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string)
 	reqID := bs.spatial.CreateEntity(ent)
 	bs.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 		ent.ID = ID
-		ent.SetupQBI()
 
-		bs.Entities[ID] = &balancedEntity{ID: ID, Worker: WorkerComponent{-1}, Client: WorkerID}
+		bs.Entities[ID] = &balancedEntity{ID: ID, Worker: WorkerComponent{-1}, Client: WorkerID, ACL: ent.ACL}
 	}
 
 }
