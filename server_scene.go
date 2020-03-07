@@ -40,7 +40,6 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 		case *Bullet:
 			ent.Update(dt)
 			if ent.HasAuthority {
-				log.Printf("Updating bullet and position")
 				sps.SS.spatial.UpdateComponent(ent.ID, cidBullet, ent.Bullet)
 				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 				if !sps.SS.InBounds(ent.Bullet.Pos) {
@@ -120,14 +119,20 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 		collision, ok := msg.(common.CollisionMessage)
 		if ok {
 			ship, foundShip := ss.ECS[collision.To.ID()].(*Ship)
-			bullet, foundBullet := ss.ECS[collision.Entity.ID()].(*Bullet)
-			//log.Printf("FS: %v FB: %v", foundShip, foundBullet)
-			if foundShip && foundBullet && bullet.Bullet.ShipID != ship.ID {
-				w.RemoveEntity(bullet.BasicEntity)
-				engo.Mailbox.Dispatch(DeleteEntityMessage{ID: bullet.ID})
-				ship.TakeDamage(bullet.Bullet.Damage)
+			target, foundTarget := ss.ECS[collision.Entity.ID()]
 
-				log.Printf("Hit ship: %+v", ship)
+			if foundShip && foundTarget {
+
+				switch t := target.(type) {
+				case *Bullet:
+					w.RemoveEntity(t.BasicEntity)
+					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
+					log.Printf("Bullet hit ship: %+v", ship)
+				case *Ship:
+					w.RemoveEntity(t.BasicEntity)
+					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
+					log.Printf("Ship hit ship: %+v", ship)
+				}
 
 			}
 

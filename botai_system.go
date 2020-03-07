@@ -47,13 +47,12 @@ func (bas *BotAISystem) Update(dt float32) {
 			bas.Ship.PlayerInput.Forward = true
 		}
 		if bas.StopTurnAt.Sub(now) < 0 {
-			log.Printf("Stopping")
 			bas.Ship.PlayerInput.Left = false
 			bas.Ship.PlayerInput.Right = false
 			bas.Ship.PlayerInput.Forward = false
 
 		}
 
-		bas.SS.spatial.UpdateComponent(bas.Ship.ID, cidPlayerInput, bas.Ship.PlayerInput)
+		//bas.SS.spatial.UpdateComponent(bas.Ship.ID, cidPlayerInput, bas.Ship.PlayerInput)
 	}
 }

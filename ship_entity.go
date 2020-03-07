@@ -180,49 +180,6 @@ func (s *Ship) UpdatePos(dt float32) {
 	s.SpaceComponent.Rotation = s.Ship.Angle
 }
 
-func (s *Ship) SetupQBI() {
-	/*
-		ID := int64(s.ID)
-		ShipCID := uint32(cidShip)
-		BulletCID := uint32(cidBullet)
-		//relConstraint := QBIRelativeSphereConstraint{Radius: 100}
-		relConstraint := QBIRelativeBoxConstraint{
-			Edge: EdgeLength{X: 800, Y: 30000, Z: 300},
-		}
-		constraint := QBIConstraint{
-			OrConstraint: []QBIConstraint{
-				// EntiyID is our entity id
-				QBIConstraint{EntityIDConstraint: &ID},
-				// OR
-				QBIConstraint{
-					// It's in our relative sphere AND it's ShipComponent or Bullet component
-					AndConstraint: []QBIConstraint{
-						QBIConstraint{RelativeBoxConstraint: &relConstraint},
-						QBIConstraint{
-							OrConstraint: []QBIConstraint{
-								QBIConstraint{ComponentIDConstraint: &ShipCID},
-								QBIConstraint{ComponentIDConstraint: &BulletCID},
-							},
-						},
-					},
-				},
-			},
-		}
-		qbi := ImprobableInterest{
-			Interest: map[uint32]ComponentInterest{
-				cidPlayerInput: ComponentInterest{
-					Queries: []QBIQuery{
-						{Constraint: constraint, ResultComponents: []uint32{cidShip, cidBullet, cidPosition}},
-					},
-				},
-			},
-		}
-
-		s.Interest = qbi
-
-	*/
-}
-
 func (s *Ship) TakeDamage(amount uint32) {
 	log.Printf("I'm taking damage: %d", amount)
 	s.Ship.CurrentEnergy -= float32(amount)
