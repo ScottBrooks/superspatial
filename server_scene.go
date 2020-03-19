@@ -3,6 +3,7 @@ package superspatial
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/sirupsen/logrus"
@@ -118,20 +119,32 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 	engo.Mailbox.Listen(common.CollisionMessage{}.Type(), func(msg engo.Message) {
 		collision, ok := msg.(common.CollisionMessage)
 		if ok {
+			log.Printf("Collision: %+v %+v %+v", collision, collision.Entity.SpaceComponent, collision.To.SpaceComponent)
 			ship, foundShip := ss.ECS[collision.To.ID()].(*Ship)
 			target, foundTarget := ss.ECS[collision.Entity.ID()]
 
-			if foundShip && foundTarget {
+			if foundShip && foundTarget && ship != target {
+				log.Printf("---------- %d HIT %d --------", collision.Entity.ID(), collision.To.ID())
 
 				switch t := target.(type) {
 				case *Bullet:
-					w.RemoveEntity(t.BasicEntity)
-					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
-					log.Printf("Bullet hit ship: %+v", ship)
+					if t.Bullet.ShipID != ship.ID {
+						log.Printf("Ship: %+v, Target: %+v ", ship.SpaceComponent.Position, t.SpaceComponent.Position)
+
+						w.RemoveEntity(t.BasicEntity)
+						engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
+						log.Printf("Bullet hit ship: %+v", ship)
+						ss.NewEffect(t.Bullet.Pos, 1, 300)
+						delete(ss.ECS, t.BasicEntity.ID())
+					}
 				case *Ship:
+					log.Printf("Ship: %+v, Target: %+v ", ship.SpaceComponent.Position, t.SpaceComponent.Position)
 					w.RemoveEntity(t.BasicEntity)
 					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
+
 					log.Printf("Ship hit ship: %+v", ship)
+					ss.NewEffect(t.Ship.Pos, 1, 1000)
+					delete(ss.ECS, t.BasicEntity.ID())
 				}
 
 			}
@@ -218,7 +231,15 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
+	}
+	if op.CID == cidEffect {
+		go func() {
+			time.Sleep(time.Duration(op.Component.(*EffectComponent).Expiry) * time.Millisecond)
 
+			log.Printf("Deleting the effect after expiry")
+			engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
+
+		}()
 	}
 }
 
@@ -226,6 +247,16 @@ func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 	log.Debugf("OnRemoveComponent: %+v", op)
 	if op.CID == cidWorker {
 		ss.OnClientDisconnect(op.ID)
+	}
+
+	if op.CID == cidShip {
+		ent, ok := ss.Entities[op.ID].(*Ship)
+		if !ok {
+			log.Printf("nota ship: %+v", ent)
+		} else {
+			ss.CollisionSystem.Remove(ent.BasicEntity)
+
+		}
 	}
 }
 
@@ -303,6 +334,8 @@ func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (int
 		return &PlayerInputComponent{}, nil
 	case cidWorkerBalancer:
 		return &WorkerComponent{}, nil
+	case cidEffect:
+		return &EffectComponent{}, nil
 	}
 	return nil, fmt.Errorf("Unimplemented")
 }

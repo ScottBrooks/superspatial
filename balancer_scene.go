@@ -104,7 +104,6 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 	}
 	if op.CID == cidBullet {
 		log.Printf("It's a bullet")
-
 	}
 }
 
@@ -163,7 +162,7 @@ func (bs *BalancerScene) adjustAcl(i int, e *balancedEntity, w balancedWorker) {
 	workerID := "workerId:" + w.WorkerID
 
 	// Update our ACL entries that varry per worker.
-	for _, cid := range []uint32{cidShip, cidBullet, cidPosition} {
+	for _, cid := range []uint32{cidShip, cidBullet, cidPosition, cidEffect} {
 		if _, ok := e.ACL.ComponentWriteAcl[cid]; ok {
 			e.ACL.ComponentWriteAcl[cid] = WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}}
 		}
@@ -259,6 +258,7 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 	ShipCID := uint32(cidShip)
 	BulletCID := uint32(cidBullet)
 	PlayerInputCID := uint32(cidPlayerInput)
+	EffectCID := uint32(cidEffect)
 
 	workerID = "workerId:" + workerID
 
@@ -285,6 +285,7 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 				OrConstraint: []QBIConstraint{
 					QBIConstraint{ComponentIDConstraint: &ShipCID},
 					QBIConstraint{ComponentIDConstraint: &BulletCID},
+					QBIConstraint{ComponentIDConstraint: &EffectCID},
 					QBIConstraint{ComponentIDConstraint: &PlayerInputCID},
 				},
 			},
@@ -293,16 +294,24 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 
 	interest := ImprobableInterest{
 		Interest: map[uint32]ComponentInterest{
-			cidShip: ComponentInterest{
+
+			cidPosition: ComponentInterest{
 				Queries: []QBIQuery{
-					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidPlayerInput}},
+					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidEffect, cidBullet, cidPlayerInput}},
 				},
 			},
-			cidBullet: ComponentInterest{
-				Queries: []QBIQuery{
-					{Constraint: constraint, ResultComponents: []uint32{cidBullet, cidPosition}},
+			/*
+				cidShip: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidEffect, cidPlayerInput}},
+					},
 				},
-			},
+				cidBullet: ComponentInterest{
+					Queries: []QBIQuery{
+						{Constraint: constraint, ResultComponents: []uint32{cidBullet, cidPosition}},
+					},
+				},
+			*/
 		},
 	}
 	acl := ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}

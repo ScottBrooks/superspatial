@@ -12,3 +12,4 @@ const cidGame = 1002
 const cidPlayerInput = 1003
 const cidBalancer = 1004
 const cidWorkerBalancer = 1005
+const cidEffect = 1006

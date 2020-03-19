@@ -58,7 +58,7 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 			Interest: map[uint32]ComponentInterest{
 				cidPlayerInput: ComponentInterest{
 					Queries: []QBIQuery{
-						{Constraint: QBIConstraint{RelativeBoxConstraint: &relConstraint}, ResultComponents: []uint32{cidShip, cidBullet, cidPosition, cidMetadata, cidWorkerBalancer}},
+						{Constraint: QBIConstraint{RelativeBoxConstraint: &relConstraint}, ResultComponents: []uint32{cidShip, cidBullet, cidPosition, cidMetadata, cidWorkerBalancer, cidEffect}},
 					},
 				},
 				cidShip: ComponentInterest{

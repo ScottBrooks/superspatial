@@ -74,3 +74,9 @@ type PlayerInputComponent struct {
 	Back    bool
 	Attack  bool
 }
+
+type EffectComponent struct {
+	Id     int32
+	Expiry int32
+	Pos    mgl32.Vec3
+}

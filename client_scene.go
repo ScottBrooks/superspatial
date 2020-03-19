@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image/color"
+	"time"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -33,6 +34,7 @@ type ClientScene struct {
 
 	CS        *common.CameraSystem
 	R         common.RenderSystem
+	Anim      common.AnimationSystem
 	Camera    common.EntityScroller
 	PIS       PlayerInputSystem
 	CPS       ClientPredictionSystem
@@ -40,10 +42,12 @@ type ClientScene struct {
 	HUDPos    engo.Point
 	EnergyBar MenuSprite
 	Font      *common.Font
+	Explosion *common.Animation
 
 	EntToEcs map[sos.EntityID]uint64
 	Ships    map[sos.EntityID]*ClientShip
 	Bullets  map[sos.EntityID]*ClientBullet
+	Effects  map[sos.EntityID]*ClientEffect
 }
 
 type PlayerInputSystem struct {
@@ -128,6 +132,7 @@ func (cs *ClientScene) Preload() {
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_3.png")
 	engo.Files.LoadReaderData("go.ttf", bytes.NewReader(gosmallcaps.TTF))
+	engo.Files.Load("Ships/Explosion/explosion.png")
 
 }
 
@@ -158,6 +163,8 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 	cs.EntToEcs = map[sos.EntityID]uint64{}
 	cs.Ships = map[sos.EntityID]*ClientShip{}
 	cs.Bullets = map[sos.EntityID]*ClientBullet{}
+	cs.Effects = map[sos.EntityID]*ClientEffect{}
+	cs.Explosion = &common.Animation{Name: "explosion", Frames: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}}
 
 	cs.PIS.spatial = cs.ServerScene.spatial
 
@@ -165,6 +172,7 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 	w.AddSystem(&cs.PIS)
 	w.AddSystem(&SpatialPumpSystem{&cs.ServerScene})
 	w.AddSystem(&cs.CPS)
+	w.AddSystem(&cs.Anim)
 	for _, sys := range w.Systems() {
 		switch ent := sys.(type) {
 		case *common.CameraSystem:
@@ -244,16 +252,19 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 		log.Printf("Got delete message: %+v", delete)
 		if ok {
 			log.Printf("Ent: %+v", cs.Entities[delete.ID])
-			ship, foundShip := cs.Ships[delete.ID]
-			if foundShip {
+			ship := cs.Ships[delete.ID]
+			if ship != nil {
 				w.RemoveEntity(ship.BasicEntity)
 				w.RemoveEntity(ship.text.BasicEntity)
 			}
-			bullet, foundBullet := cs.Bullets[delete.ID]
-			if foundBullet {
+			bullet := cs.Bullets[delete.ID]
+			if bullet != nil {
 				w.RemoveEntity(bullet.BasicEntity)
 			}
-
+			effect := cs.Effects[delete.ID]
+			if effect != nil {
+				w.RemoveEntity(effect.BasicEntity)
+			}
 		}
 	})
 
@@ -329,6 +340,40 @@ func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
 	return &bullet
 }
 
+func (cs *ClientScene) NewEffect(e *EffectComponent) *ClientEffect {
+	log.Printf("Got a new effect: %v", e)
+
+	spriteSheet := common.NewSpritesheetFromFile("Ships/Explosion/explosion.png", 128, 128)
+
+	effect := ClientEffect{BasicEntity: ecs.NewBasic()}
+	effect.AnimationComponent = common.NewAnimationComponent(spriteSheet.Drawables(), 0.1)
+	effect.AnimationComponent.AddDefaultAnimation(cs.Explosion)
+	effect.EffectComponent = *e
+
+	switch e.Id {
+	case 1:
+		effect.RenderComponent = common.RenderComponent{
+			Drawable: spriteSheet.Cell(0),
+			Scale:    engo.Point{1, 1},
+		}
+		effect.SpaceComponent = common.SpaceComponent{
+			Position: engo.Point{e.Pos[0], e.Pos[1]},
+			Width:    128 * effect.RenderComponent.Scale.X,
+			Height:   128 * effect.RenderComponent.Scale.Y,
+		}
+		effect.SpaceComponent.SetCenter(engo.Point{e.Pos[0], e.Pos[1]})
+		// Bullets go slightly behind ships
+		effect.RenderComponent.SetZIndex(9)
+
+		log.Printf("Space Component: %+v", effect.SpaceComponent)
+	}
+
+	cs.R.Add(&effect.BasicEntity, &effect.RenderComponent, &effect.SpaceComponent)
+	cs.Anim.Add(&effect.BasicEntity, &effect.AnimationComponent, &effect.RenderComponent)
+
+	return &effect
+}
+
 func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	cs.ServerScene.OnComponentUpdate(op)
 
@@ -379,6 +424,7 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 
 func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 	//cs.ServerScene.OnAddComponent(op)
+	log.Printf("Client add componeont: %+v", op)
 
 	if op.CID == cidShip {
 		s, ok := op.Component.(*ShipComponent)
@@ -400,7 +446,19 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 			cs.EntToEcs[op.ID] = bullet.ID()
 			cs.Bullets[op.ID] = bullet
 		}
-
+	}
+	if op.CID == cidEffect {
+		e, ok := op.Component.(*EffectComponent)
+		log.Printf("Add Component: %+v", e)
+		if !ok {
+			log.Printf("Expected effect component but not found")
+		}
+		_, hasEffect := cs.EntToEcs[op.ID]
+		if !hasEffect {
+			effect := cs.NewEffect(e)
+			cs.EntToEcs[op.ID] = effect.ID()
+			cs.Effects[op.ID] = effect
+		}
 	}
 
 }
@@ -425,4 +483,18 @@ func (cs *ClientScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 
 func (cs *ClientScene) Type() string {
 	return "Client"
+}
+
+type ClientEffect struct {
+	ecs.BasicEntity
+	common.RenderComponent
+	common.SpaceComponent
+	common.AnimationComponent
+
+	EffectComponent `sos:"1006"`
+	CreatedAt       time.Time
+}
+
+func (ce *ClientEffect) HasExpired() bool {
+	return time.Now().Sub(ce.CreatedAt) > time.Duration(ce.EffectComponent.Expiry)
 }
