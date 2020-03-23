@@ -10,6 +10,17 @@
       "value": "false"
     }
   ],
+  "workerFlags": [
+    {
+      "workerType": "Balancer",
+      "flags": [
+        {
+          "name": "NUM_BOTS",
+          "value": "3"
+        }
+      ]
+    }
+  ],
   "loadBalancing": {
     "layerConfigurations": [
       {
