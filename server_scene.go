@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
 
 	"github.com/EngoEngine/ecs"
@@ -19,7 +20,10 @@ var logger = logrus.New()
 var log = logrus.NewEntry(logger)
 
 func init() {
-	logger.SetLevel(logrus.DebugLevel)
+	//logger.SetLevel(logrus.DebugLevel)
+
+	logger.SetFormatter(&logrus.TextFormatter{ForceColors: true})
+	logrus.SetOutput(colorable.NewColorableStdout())
 }
 
 type SpatialPumpSystem struct {

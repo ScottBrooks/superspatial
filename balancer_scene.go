@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -24,6 +25,8 @@ type balancedWorker struct {
 	WorkerID       string
 	WorkerEntityID sos.EntityID
 	AABB           engo.AABB
+	Killing        bool
+	Process        *os.Process
 }
 
 type WorkerComponent struct {
@@ -42,19 +45,23 @@ type balancedEntity struct {
 type BalancerScene struct {
 	ServerScene
 
-	RequestingWorker bool
-	WorldBounds      engo.AABB
-	Workers          []balancedWorker
-	Entities         map[sos.EntityID]*balancedEntity
+	WorkersAdjusting  bool
+	TargetWorkerCount int
+	WorldBounds       engo.AABB
+	Workers           []balancedWorker
+	Entities          map[sos.EntityID]*balancedEntity
 
-	Bots    []*os.Process
-	Clients map[sos.EntityID]string
+	BotProcesses    []*os.Process
+	WorkerProcesses []*os.Process
+	Clients         map[sos.EntityID]string
 }
 
 func (*BalancerScene) Preload() {}
 func (bs *BalancerScene) Setup(u engo.Updater) {
 	w, _ := u.(*ecs.World)
 	log = log.WithField("worker", bs.ServerScene.WorkerType())
+	sos.SilenceLogs()
+
 	bs.spatial = sos.NewSpatialSystem(bs, bs.ServerScene.Host, bs.ServerScene.Port, bs.ServerScene.WorkerID, nil)
 	bs.Entities = map[sos.EntityID]*balancedEntity{}
 	bs.Clients = map[sos.EntityID]string{}
@@ -80,28 +87,33 @@ func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
 	impWorker, ok := op.Component.(*ImprobableWorker)
-	log.Printf("WorkerType: %+v", impWorker)
 	if ok && (impWorker.WorkerType == "LauncherClient" || impWorker.WorkerType == "Bot") {
 		bs.Clients[op.ID] = impWorker.WorkerType
 
-		if bs.needsMoreWorkers() {
-			bs.startWorker()
-		}
+		bs.updateWorkerProcesses()
 		bs.OnClientConnect(op.ID, impWorker.WorkerID)
 	}
 	if ok && impWorker.WorkerType == "Server" {
 		log.Printf("OMG WE STARTED A SERVER")
-		bs.RequestingWorker = false
+		bs.WorkersAdjusting = false
 
 		ent := NewServerWorker()
 		reqID := bs.spatial.CreateEntity(ent)
 		bs.OnCreateFunc[reqID] = func(ID sos.EntityID) {
 			ent.ID = ID
 			log.Printf("Create complete")
-			bs.Workers = append(bs.Workers, balancedWorker{WorkerID: impWorker.WorkerID, WorkerEntityID: op.ID, ID: ID})
-			if bs.needsMoreWorkers() {
-				bs.startWorker()
+
+			pid, err := strconv.Atoi(strings.TrimPrefix(impWorker.WorkerID, "Server_"))
+			if err != nil {
+				log.Printf("Expected to be able to turn worker id into a pid", err)
 			}
+
+			proc, err := os.FindProcess(pid)
+			if err != nil {
+				log.Printf("Expected to be able to find process: %v", err)
+			}
+			bs.Workers = append(bs.Workers, balancedWorker{WorkerID: impWorker.WorkerID, WorkerEntityID: op.ID, ID: ID, Process: proc})
+			bs.updateWorkerProcesses()
 
 			bs.checkEntityBounds()
 		}
@@ -122,6 +134,19 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 		delete(bs.Clients, op.ID)
 	}
 
+	if op.CID == cidWorker {
+		toDelete := -1
+		for i, w := range bs.Workers {
+			if w.WorkerEntityID == op.ID {
+				toDelete = i
+			}
+		}
+		if toDelete != -1 {
+			bs.Workers = append(bs.Workers[:toDelete], bs.Workers[toDelete+1:]...)
+		}
+		bs.updateWorkerProcesses()
+	}
+
 }
 
 func (bs *BalancerScene) OnDeleteEntity(op sos.DeleteEntityOp) {
@@ -137,7 +162,9 @@ func (bs *BalancerScene) OnCreateEntity(op sos.CreateEntityOp) {
 	log.Printf("Workers: %+v", bs.Workers)
 	for _, w := range bs.Workers {
 		if w.ID == op.ID {
-			bs.rebalanceAuthority()
+			if bs.TargetWorkerCount == len(bs.Workers) {
+				bs.rebalanceAuthority()
+			}
 		}
 	}
 
@@ -222,7 +249,7 @@ func (bs *BalancerScene) OnFlagUpdate(op sos.FlagUpdateOp) {
 			return
 		}
 
-		delta := target - len(bs.Bots)
+		delta := target - len(bs.BotProcesses)
 		log.Printf("Bots delta: %d", delta)
 		if delta > 0 {
 			for i := 0; i < delta; i++ {
@@ -239,8 +266,13 @@ func (bs *BalancerScene) OnFlagUpdate(op sos.FlagUpdateOp) {
 	}
 }
 
-func (bs *BalancerScene) needsMoreWorkers() bool {
-	numWorkers := len(bs.Workers)
+func (bs *BalancerScene) updateWorkerProcesses() {
+	var numWorkers int
+	for _, w := range bs.Workers {
+		if !w.Killing {
+			numWorkers++
+		}
+	}
 	numClients := len(bs.Clients)
 
 	reqWorkers := bits.Len(uint(numClients / 2))
@@ -248,13 +280,15 @@ func (bs *BalancerScene) needsMoreWorkers() bool {
 		reqWorkers = 1
 	}
 
-	if reqWorkers > numWorkers && !bs.RequestingWorker {
+	if reqWorkers > numWorkers && !bs.WorkersAdjusting {
 		log.Printf("We are requesting more workers: %d %d", reqWorkers, numWorkers)
-		bs.RequestingWorker = true
-		return true
+		bs.TargetWorkerCount = reqWorkers
+		bs.startWorker()
 	}
-
-	return false
+	if reqWorkers < numWorkers && !bs.WorkersAdjusting {
+		log.Printf("We are killing a worker: %d")
+		bs.stopWorker()
+	}
 }
 
 func (bs *BalancerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
@@ -274,26 +308,37 @@ func (bs *BalancerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string)
 
 func (bs *BalancerScene) startWorker() {
 	var cmd *exec.Cmd
-	if bs.ServerScene.Development {
-		cmd = exec.Command("go", "run", "cmd/server/main.go")
-	} else {
-		cmd = exec.Command("./server", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
-	}
+	cmd = exec.Command("./server", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
 	err := cmd.Start()
 	if err != nil {
 		log.Printf("Error starting worker: %+v", err)
 	}
+	bs.WorkersAdjusting = true
+}
+
+func (bs *BalancerScene) stopWorker() {
+	if len(bs.Workers) == 0 {
+		log.Printf("No workers to stop")
+		return
+	}
+
+	bs.Workers[0].Killing = true
+	proc := bs.Workers[0].Process
+	if proc == nil {
+		log.Printf("Proc is nil for worker: %v", bs.Workers[0])
+	}
+	log.Printf("Killing worker: %+v", proc)
+	proc.Kill()
+	p, err := proc.Wait()
+	log.Printf("P: %+v Err: %+v", p, err)
 }
 
 func (bs *BalancerScene) startBot() {
 	var cmd *exec.Cmd
-	if bs.ServerScene.Development {
-		cmd = exec.Command("go", "run", "cmd/bot/main.go")
-	} else {
-		cmd = exec.Command("./bot", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
-	}
+	cmd = exec.Command("./bot", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
@@ -301,21 +346,21 @@ func (bs *BalancerScene) startBot() {
 		log.Printf("Error starting ot: %+v", err)
 	}
 
-	bs.Bots = append(bs.Bots, cmd.Process)
+	bs.BotProcesses = append(bs.BotProcesses, cmd.Process)
 }
 
 func (bs *BalancerScene) stopBot() {
-	if len(bs.Bots) == 0 {
+	if len(bs.BotProcesses) == 0 {
 		log.Printf("No bots to stop")
 		return
 	}
 
-	proc := bs.Bots[0]
+	proc := bs.BotProcesses[0]
 	log.Printf("Killing bot: %+v", proc)
 	proc.Kill()
 	p, err := proc.Wait()
 	log.Printf("P: %+v Err: %+v", p, err)
-	bs.Bots = bs.Bots[1:]
+	bs.BotProcesses = bs.BotProcesses[1:]
 }
 
 // Simple split into vertical slices
