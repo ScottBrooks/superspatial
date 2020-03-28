@@ -1,6 +1,7 @@
 package superspatial
 
 import (
+	"math"
 	"math/bits"
 	"math/rand"
 	"os"
@@ -142,6 +143,7 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 			}
 		}
 		if toDelete != -1 {
+			bs.spatial.Delete(bs.Workers[toDelete].ID)
 			bs.Workers = append(bs.Workers[:toDelete], bs.Workers[toDelete+1:]...)
 		}
 		bs.updateWorkerProcesses()
@@ -275,9 +277,9 @@ func (bs *BalancerScene) updateWorkerProcesses() {
 	}
 	numClients := len(bs.Clients)
 
-	reqWorkers := bits.Len(uint(numClients / 2))
-	if reqWorkers <= 0 {
-		reqWorkers = 1
+	reqWorkers := int(math.Pow(float64(bits.Len(uint(numClients))/2), 2))
+	if reqWorkers <= 1 {
+		reqWorkers++
 	}
 
 	if reqWorkers > numWorkers && !bs.WorkersAdjusting {
@@ -365,17 +367,24 @@ func (bs *BalancerScene) stopBot() {
 
 // Simple split into vertical slices
 func (bs *BalancerScene) rebalanceAuthority() {
-	log.Printf("Rebalance auth")
-	xSize := int(bs.WorldBounds.Max.X-bs.WorldBounds.Min.X) / len(bs.Workers)
-	xOffset := 0
-	for i, w := range bs.Workers {
-		bounds := engo.AABB{Min: engo.Point{float32(xOffset), bs.WorldBounds.Min.Y}, Max: engo.Point{float32(xOffset + xSize), bs.WorldBounds.Max.Y}}
-		bs.setWorkerACL(w.ID, w.WorkerID, bounds)
+	cellCount := int(math.Sqrt(float64(len(bs.Workers))))
+	xSize := int(bs.WorldBounds.Max.X-bs.WorldBounds.Min.X) / cellCount
+	ySize := int(bs.WorldBounds.Max.Y-bs.WorldBounds.Min.Y) / cellCount
+	log.Printf("Rebalance auth: Cell Count: %d XS: %d YS: %d", cellCount, xSize, ySize)
+	for y := 0; y < cellCount; y++ {
+		for x := 0; x < cellCount; x++ {
+			i := y*cellCount + x
+			w := bs.Workers[i]
+			bounds := engo.AABB{
+				Min: engo.Point{float32(x * xSize), float32(y * ySize)},
+				Max: engo.Point{float32(x*xSize + xSize), float32(y*ySize + ySize)},
+			}
+			bs.setWorkerACL(w.ID, w.WorkerID, bounds)
+			log.Printf("Bounds[%d, %d]: %d %+v", x, y, i, bounds)
 
-		bs.Workers[i].AABB = bounds
-		xOffset += xSize
+			bs.Workers[i].AABB = bounds
+		}
 	}
-
 }
 
 func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds engo.AABB) {
