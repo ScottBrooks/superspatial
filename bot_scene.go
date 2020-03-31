@@ -55,10 +55,9 @@ func (bs *BotScene) OnRemoveEntity(op sos.RemoveEntityOp) {
 	}
 }
 func (bs *BotScene) OnCreateEntity(op sos.CreateEntityOp) {
-	log.Printf("Go create ent op: %+v", op)
 	bs.ServerScene.OnCreateEntity(op)
-
 }
+
 func (bs *BotScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	ent, ok := bs.Entities[op.ID]
 
