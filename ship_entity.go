@@ -128,7 +128,8 @@ func (s *Ship) UpdateCooldown(dt float32) {
 }
 
 func (s *Ship) UpdateAttack(dt float32) {
-	if s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > float32(s.AttackDamage) {
+	// Disabled attacks for now
+	if false && s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > float32(s.AttackDamage) {
 		engo.Mailbox.Dispatch(AttackMessage{
 			Pos:    s.Ship.Pos,
 			Vel:    s.Ship.Vel,

@@ -82,20 +82,22 @@ func (bs *BalancerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 }
 
 func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
-	bs.Entities[op.ID] = &balancedEntity{ID: op.ID, Worker: WorkerComponent{-1}}
+	if bs.Entities[op.ID] == nil {
+		bs.Entities[op.ID] = &balancedEntity{ID: op.ID, Worker: WorkerComponent{-1}}
+	} else {
+		log.Printf("Already had entity: %d", op.ID)
+	}
 }
 
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
-	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
 	impWorker, ok := op.Component.(*ImprobableWorker)
 	if ok && (impWorker.WorkerType == "LauncherClient" || impWorker.WorkerType == "Bot") {
 		bs.Clients[op.ID] = impWorker.WorkerType
 
 		bs.updateWorkerProcesses()
-		bs.OnClientConnect(op.ID, impWorker.WorkerID)
+		bs.CreateClientShip(impWorker.WorkerID)
 	}
 	if ok && impWorker.WorkerType == "Server" {
-		log.Printf("OMG WE STARTED A SERVER")
 		bs.WorkersAdjusting = false
 
 		ent := NewServerWorker()
@@ -128,7 +130,6 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 }
 
 func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
-	log.Printf("OnRemoveComponent: %+v", op)
 
 	_, ok := bs.Clients[op.ID]
 	if ok {
@@ -151,9 +152,20 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 
 }
 
+func (bs *BalancerScene) OnRemoveEntity(op sos.RemoveEntityOp) {
+	if e := bs.Entities[op.ID]; e != nil {
+		if e.Client != "" {
+			bs.CreateClientShip(e.Client)
+		}
+		log.Printf("Removing entity: %d %+v", op.ID, e)
+		delete(bs.Entities, op.ID)
+	}
+
+}
+
 func (bs *BalancerScene) OnDeleteEntity(op sos.DeleteEntityOp) {
-	if bs.Entities[op.ID] != nil {
-		log.Printf("Deleting entity: %d", op.ID)
+	if e := bs.Entities[op.ID]; e != nil {
+		log.Printf("Deleting entity: %d %+v", op.ID, e)
 		delete(bs.Entities, op.ID)
 	}
 }
@@ -293,7 +305,7 @@ func (bs *BalancerScene) updateWorkerProcesses() {
 	}
 }
 
-func (bs *BalancerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string) {
+func (bs *BalancerScene) CreateClientShip(WorkerID string) {
 	// Create entity,
 	log.Printf("Creating client entity: %s", WorkerID)
 	spawnPoint := mgl32.Vec2{rand.Float32() * bs.WorldBounds.Max.X, rand.Float32() * bs.WorldBounds.Max.Y}
@@ -304,6 +316,7 @@ func (bs *BalancerScene) OnClientConnect(ClientID sos.EntityID, WorkerID string)
 		ent.ID = ID
 
 		bs.Entities[ID] = &balancedEntity{ID: ID, Worker: WorkerComponent{-1}, Client: WorkerID, ACL: ent.ACL}
+		log.Printf("Entity: %+v", bs.Entities[ID])
 	}
 
 }

@@ -265,10 +265,8 @@ func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 }
 
 func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
-	log.Printf("OnAuthorityChange: %+v", op)
 	if op.CID == 58 && op.Authority == 1 {
 		e := ss.Entities[op.ID]
-		log.Printf("E: %+v", e)
 		s, ok := e.(*Ship)
 		if !ok {
 			log.Printf("UNable to cast :%+v to ship", e)

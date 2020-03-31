@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"image/color"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ScottBrooks/superspatial"
+	"golang.org/x/image/font/gofont/gosmallcaps"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
@@ -23,8 +25,15 @@ var (
 	worldHeight int     = 768
 )
 
-type MainMenuScene struct{}
+type MainMenuScene struct {
+	Font *common.Font
+}
 
+type Text struct {
+	ecs.BasicEntity
+	common.SpaceComponent
+	common.RenderComponent
+}
 type MenuSprite struct {
 	ecs.BasicEntity
 	common.RenderComponent
@@ -57,6 +66,13 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 	w.AddSystem(&rs)
 	w.AddSystem(&ss)
 
+	mm.Font = &common.Font{
+		URL:  "go.ttf",
+		FG:   color.White,
+		Size: 64,
+	}
+	mm.Font.CreatePreloaded()
+
 	bg := MenuSprite{
 		BasicEntity: ecs.NewBasic(),
 		RenderComponent: common.RenderComponent{
@@ -73,7 +89,7 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{250, 100},
+			Position: engo.Point{307, 326},
 			Width:    410.0,
 			Height:   121.0,
 		},
@@ -86,15 +102,32 @@ func (mm *MainMenuScene) Setup(u engo.Updater) {
 			StartZIndex: 100,
 		},
 		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{250, 221},
+			Position: engo.Point{307, 500},
 			Width:    410.0,
 			Height:   121.0,
+		},
+	}
+	title := Text{
+		BasicEntity: ecs.NewBasic(),
+		RenderComponent: common.RenderComponent{
+			Drawable: common.Text{
+				Font: mm.Font,
+				Text: "Stabby Ships",
+			},
+			Scale:       engo.Point{1, 1},
+			StartZIndex: 6,
+		},
+		SpaceComponent: common.SpaceComponent{
+			Position: engo.Point{307, 60},
+			Width:    200,
+			Height:   60,
 		},
 	}
 
 	rs.Add(&bg.BasicEntity, &bg.RenderComponent, &bg.SpaceComponent)
 	rs.Add(&startBut.BasicEntity, &startBut.RenderComponent, &startBut.SpaceComponent)
 	rs.Add(&exitBut.BasicEntity, &exitBut.RenderComponent, &exitBut.SpaceComponent)
+	rs.Add(&title.BasicEntity, &title.RenderComponent, &title.SpaceComponent)
 
 	ss.Add(&startBut.BasicEntity, &startBut.RenderComponent, func() {
 		ss.Reset()
@@ -111,6 +144,7 @@ func (*MainMenuScene) Preload() {
 		"UI/Main_Menu/Start_BTN.png",
 		"UI/Main_Menu/Exit_BTN.png",
 	}
+	engo.Files.LoadReaderData("go.ttf", bytes.NewReader(gosmallcaps.TTF))
 	for _, asset := range assets {
 		err := engo.Files.Load(asset)
 		if err != nil {

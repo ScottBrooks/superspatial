@@ -34,7 +34,6 @@ func (bas *BotAISystem) Update(dt float32) {
 			bas.StopTurnAt = now.Add(2 * time.Second)
 
 			coin := rand.Intn(2)
-			log.Printf("Next turn: %+v Stop at: %+v, Coin: %d", bas.NextTurnAt, bas.StopTurnAt, coin)
 			if coin == 0 {
 				log.Printf("Turning left)")
 				bas.Ship.PlayerInput.Left = true
@@ -53,6 +52,7 @@ func (bas *BotAISystem) Update(dt float32) {
 
 		}
 
+		// Disable AI updating
 		//bas.SS.spatial.UpdateComponent(bas.Ship.ID, cidPlayerInput, bas.Ship.PlayerInput)
 	}
 }
