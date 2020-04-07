@@ -27,7 +27,6 @@ type Ship struct {
 	Mass         float32
 	AttackDamage uint32
 	HasAuthority bool
-	Radius       float32
 }
 
 func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
@@ -71,12 +70,9 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 		},
 		Mass:         1000.0,
 		AttackDamage: 20,
-		Radius:       32,
 		Ship: ShipComponent{
-			Pos:           sp.Vec3(0),
-			MaxEnergy:     100,
-			CurrentEnergy: 100,
-			ChargeRate:    10,
+			Pos:    sp.Vec3(0),
+			Radius: 32,
 		},
 
 		BasicEntity:        ecs.NewBasic(),
@@ -114,35 +110,6 @@ func clampToAABB(pos mgl32.Vec3, vel mgl32.Vec3, aabb engo.AABB) (mgl32.Vec3, mg
 
 func (s *Ship) Update(dt float32) {
 	s.UpdatePos(dt)
-	s.UpdateAttack(dt)
-	s.UpdateCooldown(dt)
-}
-
-func (s *Ship) UpdateCooldown(dt float32) {
-	s.Ship.Cooldown -= dt
-	if s.Ship.Cooldown <= 0 {
-		s.Ship.Cooldown = 0
-	}
-	s.Ship.CurrentEnergy += dt * s.Ship.ChargeRate
-	if s.Ship.CurrentEnergy >= s.Ship.MaxEnergy {
-		s.Ship.CurrentEnergy = s.Ship.MaxEnergy
-	}
-}
-
-func (s *Ship) UpdateAttack(dt float32) {
-	// Disabled attacks for now
-	if false && s.PIC.Attack && s.Ship.Cooldown <= 0 && s.Ship.CurrentEnergy > float32(s.AttackDamage) {
-		engo.Mailbox.Dispatch(AttackMessage{
-			Pos:    s.Ship.Pos,
-			Vel:    s.Ship.Vel,
-			Angle:  s.Ship.Angle,
-			ShipID: s.ID,
-			Damage: s.AttackDamage,
-		})
-
-		s.Ship.Cooldown = 0.2
-		s.Ship.CurrentEnergy -= float32(s.AttackDamage)
-	}
 }
 
 func (s *Ship) UpdatePos(dt float32) {
@@ -151,7 +118,6 @@ func (s *Ship) UpdatePos(dt float32) {
 		accel := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
 		accel = accel.Mul(s.Mass).Mul(dt)
 		s.Ship.Vel = s.Ship.Vel.Add(accel)
-		s.Ship.CurrentEnergy -= dt * (s.Ship.ChargeRate / 2.0)
 
 	}
 	if s.PIC.Back {
@@ -159,7 +125,6 @@ func (s *Ship) UpdatePos(dt float32) {
 		accel := mgl32.Vec3{float32(math.Cos(angleRad)), float32(math.Sin(angleRad)), 0}
 		accel = accel.Mul(s.Mass).Mul(dt)
 		s.Ship.Vel = s.Ship.Vel.Sub(accel)
-		s.Ship.CurrentEnergy -= dt * (s.Ship.ChargeRate / 2.0)
 	}
 	if s.PIC.Left {
 		s.Ship.Angle -= 90.0 * dt
@@ -181,10 +146,4 @@ func (s *Ship) UpdatePos(dt float32) {
 	s.SpaceComponent.Position.X = s.Ship.Pos[0]
 	s.SpaceComponent.Position.Y = s.Ship.Pos[1]
 	s.SpaceComponent.Rotation = s.Ship.Angle
-}
-
-func (s *Ship) TakeDamage(amount uint32) {
-	log.Printf("I'm taking damage: %d", amount)
-	s.Ship.CurrentEnergy -= float32(amount)
-
 }

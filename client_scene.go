@@ -40,7 +40,6 @@ type ClientScene struct {
 	CPS       ClientPredictionSystem
 	HS        HudSystem
 	HUDPos    engo.Point
-	EnergyBar MenuSprite
 	Font      *common.Font
 	Explosion *common.Animation
 
@@ -215,38 +214,6 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 
 	cs.HUDPos.Set(0, 0)
 
-	healthBar := MenuSprite{
-		BasicEntity: ecs.NewBasic(),
-		RenderComponent: common.RenderComponent{
-			Drawable:    mustLoadSprite("UI/Upgrade/Health.png"),
-			Scale:       engo.Point{1, 1},
-			StartZIndex: 100,
-		},
-		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{10, 10},
-			Width:    258.0,
-			Height:   44.0,
-		},
-	}
-	cs.R.Add(&healthBar.BasicEntity, &healthBar.RenderComponent, &healthBar.SpaceComponent)
-	cs.HS.Add(&healthBar.BasicEntity, &healthBar.SpaceComponent, engo.Point{10, 10})
-
-	cs.EnergyBar = MenuSprite{
-		BasicEntity: ecs.NewBasic(),
-		RenderComponent: common.RenderComponent{
-			Drawable:    mustLoadSprite("UI/Loading_Bar/Loading_Bar_2_2.png"),
-			Scale:       engo.Point{0.6, 1},
-			StartZIndex: 100,
-		},
-		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{10, 10},
-			Width:    890.0,
-			Height:   40.0,
-		},
-	}
-	cs.R.Add(&cs.EnergyBar.BasicEntity, &cs.EnergyBar.RenderComponent, &cs.EnergyBar.SpaceComponent)
-	cs.HS.Add(&cs.EnergyBar.BasicEntity, &cs.EnergyBar.SpaceComponent, engo.Point{140, 10})
-
 	engo.Mailbox.Listen(DeleteEntityMessage{}.Type(), func(m engo.Message) {
 		delete, ok := m.(DeleteEntityMessage)
 		log.Printf("Got delete message: %+v", delete)
@@ -388,9 +355,6 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 			ship, ok := cs.Ships[op.ID]
 			if ok {
 				cs.Camera.SpaceComponent = &ship.SpaceComponent
-				energyPercent := float32(ship.ShipComponent.CurrentEnergy) / float32(ship.ShipComponent.MaxEnergy)
-
-				cs.EnergyBar.RenderComponent.Scale.X = energyPercent * 0.6
 			}
 		}
 

@@ -49,14 +49,10 @@ type SpatialGameComponent struct {
 }
 
 type ShipComponent struct {
-	CurrentEnergy float32
-	MaxEnergy     float32
-	Cooldown      float32
-	ChargeRate    float32
-
-	Pos   mgl32.Vec3
-	Vel   mgl32.Vec3
-	Angle float32
+	Pos    mgl32.Vec3
+	Vel    mgl32.Vec3
+	Angle  float32
+	Radius float32
 }
 
 type BulletComponent struct {

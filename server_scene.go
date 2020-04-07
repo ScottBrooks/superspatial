@@ -253,7 +253,7 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
-		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, ent.Radius)
+		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, ent.Ship.Radius)
 	}
 	if op.CID == cidBullet {
 		log.Printf("Making a new bullet")
