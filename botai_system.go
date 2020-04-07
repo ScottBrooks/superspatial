@@ -35,11 +35,11 @@ func (bas *BotAISystem) Update(dt float32) {
 
 			coin := rand.Intn(2)
 			if coin == 0 {
-				log.Printf("Turning left)")
+				//log.Printf("Turning left)")
 				bas.Ship.PlayerInput.Left = true
 				bas.Ship.PlayerInput.Right = false
 			} else {
-				log.Printf("Turning right")
+				//log.Printf("Turning right")
 				bas.Ship.PlayerInput.Left = false
 				bas.Ship.PlayerInput.Right = true
 			}

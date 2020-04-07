@@ -82,7 +82,7 @@ func (as *AttackSystem) newBullet(am AttackMessage) {
 		as.SS.ECS[ent.GetBasicEntity().ID()] = &ent
 		as.Entities = append(as.Entities, &ent)
 
-		as.SS.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
+		as.SS.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, 1)
 	}
 }
 

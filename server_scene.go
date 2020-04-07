@@ -2,6 +2,7 @@ package superspatial
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 
 	"github.com/EngoEngine/ecs"
 	"github.com/EngoEngine/engo"
-	"github.com/EngoEngine/engo/common"
 	"github.com/ScottBrooks/sos"
 )
 
@@ -88,7 +88,15 @@ type ServerScene struct {
 
 	Bounds engo.AABB
 
-	CollisionSystem common.CollisionSystem
+	CircleCollisionSystem CircleCollisionSystem
+}
+
+func angleDist(a float32, b float32) float32 {
+	phi := float32(math.Mod(math.Abs(float64(a-b)), 360))
+	if phi > 180 {
+		return 360 - phi
+	}
+	return phi
 }
 
 func (*ServerScene) Preload() {}
@@ -105,12 +113,10 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 	ss.Bounds = worldBounds
 
-	ss.CollisionSystem = common.CollisionSystem{Solids: 1}
-
 	w.AddSystem(&ss.phys)
 	w.AddSystem(&SpatialPumpSystem{ss})
 	w.AddSystem(&AttackSystem{SS: ss})
-	w.AddSystem(&ss.CollisionSystem)
+	w.AddSystem(&ss.CircleCollisionSystem)
 
 	engo.Mailbox.Listen(DeleteEntityMessage{}.Type(), func(msg engo.Message) {
 		dem, ok := msg.(DeleteEntityMessage)
@@ -120,35 +126,56 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 		ss.spatial.Delete(dem.ID)
 	})
 
-	engo.Mailbox.Listen(common.CollisionMessage{}.Type(), func(msg engo.Message) {
-		collision, ok := msg.(common.CollisionMessage)
+	engo.Mailbox.Listen(CircleCollisionMessage{}.Type(), func(msg engo.Message) {
+		collision, ok := msg.(CircleCollisionMessage)
 		if ok {
-			log.Printf("Collision: %+v %+v %+v", collision, collision.Entity.SpaceComponent, collision.To.SpaceComponent)
-			ship, foundShip := ss.ECS[collision.To.ID()].(*Ship)
-			target, foundTarget := ss.ECS[collision.Entity.ID()]
+			log.Printf("Collision: %+v %+v %+v", collision, collision.A.SpaceComponent, collision.B.SpaceComponent)
+			shipA, foundShipA := ss.ECS[collision.A.ID()].(*Ship)
+			shipB, foundShipB := ss.ECS[collision.B.ID()].(*Ship)
 
-			if foundShip && foundTarget && ship != target {
-				log.Printf("---------- %d HIT %d --------", collision.Entity.ID(), collision.To.ID())
+			if foundShipA && foundShipB && shipA != shipB {
+				delta := shipA.Ship.Pos.Sub(shipB.Ship.Pos).Len()
+				// Too far away, not a real hit
+				if delta > 64 {
+					return
+				}
+				log.Printf("---------- %d HIT %d --------: %+v", collision.A.ID(), collision.B.ID(), delta)
 
-				switch t := target.(type) {
-				case *Bullet:
-					if t.Bullet.ShipID != ship.ID {
-						log.Printf("Ship: %+v, Target: %+v ", ship.SpaceComponent.Position, t.SpaceComponent.Position)
+				vAngleA := mgl32.RadToDeg(float32(math.Atan2(float64(shipA.Ship.Vel[1]), float64(shipA.Ship.Vel[0]))))
+				vAngleB := mgl32.RadToDeg(float32(math.Atan2(float64(shipB.Ship.Vel[1]), float64(shipB.Ship.Vel[0]))))
 
-						w.RemoveEntity(t.BasicEntity)
-						engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
-						log.Printf("Bullet hit ship: %+v", ship)
-						ss.NewEffect(t.Bullet.Pos, 1, 300)
-						delete(ss.ECS, t.BasicEntity.ID())
-					}
-				case *Ship:
-					log.Printf("Ship: %+v, Target: %+v ", ship.SpaceComponent.Position, t.SpaceComponent.Position)
-					w.RemoveEntity(t.BasicEntity)
-					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: t.ID})
+				dA := angleDist(shipA.Ship.Angle, vAngleA)
+				dB := angleDist(shipB.Ship.Angle, vAngleB)
 
-					log.Printf("Ship hit ship: %+v", ship)
-					ss.NewEffect(t.Ship.Pos, 1, 1000)
-					delete(ss.ECS, t.BasicEntity.ID())
+				if dA > 30 {
+					dA = 30
+				}
+				if dB > 30 {
+					dB = 30
+				}
+
+				attackA := (30 - dA) * shipA.Ship.Vel.Len()
+				attackB := (30 - dB) * shipB.Ship.Vel.Len()
+				log.Printf("A: Angle: %f VAngle: %f Delta: %v AttackA: %f", shipA.Ship.Angle, vAngleA, dA, attackA)
+				log.Printf("B: Angle: %f VAngle: %f Delta: %v AttackB: %f", shipB.Ship.Angle, vAngleB, dB, attackB)
+
+				var deadShip *Ship
+				if attackB < attackA { // A attacks B
+					deadShip = shipB
+				} else if attackA < attackB { // B attacks A
+					deadShip = shipA
+
+				}
+
+				if deadShip != nil {
+
+					log.Printf("Ship: %+v, Target: %+v ", shipA.SpaceComponent.Position, shipB.SpaceComponent.Position)
+					w.RemoveEntity(deadShip.BasicEntity)
+					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: deadShip.ID})
+
+					log.Printf("Ship hit ship: %+v", deadShip)
+					ss.NewEffect(deadShip.Ship.Pos, 1, 1000)
+					delete(ss.ECS, deadShip.BasicEntity.ID())
 				}
 
 			}
@@ -226,7 +253,7 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
-		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
+		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, ent.Radius)
 	}
 	if op.CID == cidBullet {
 		log.Printf("Making a new bullet")
@@ -234,7 +261,7 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
-		ss.CollisionSystem.Add(&ent.BasicEntity, &ent.CollisionComponent, &ent.SpaceComponent)
+		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, 1)
 	}
 	if op.CID == cidEffect {
 		go func() {
@@ -258,7 +285,7 @@ func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 		if !ok {
 			log.Printf("nota ship: %+v", ent)
 		} else {
-			ss.CollisionSystem.Remove(ent.BasicEntity)
+			ss.CircleCollisionSystem.Remove(ent.BasicEntity)
 
 		}
 	}

@@ -27,6 +27,7 @@ type Ship struct {
 	Mass         float32
 	AttackDamage uint32
 	HasAuthority bool
+	Radius       float32
 }
 
 func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
@@ -70,6 +71,7 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 		},
 		Mass:         1000.0,
 		AttackDamage: 20,
+		Radius:       32,
 		Ship: ShipComponent{
 			Pos:           sp.Vec3(0),
 			MaxEnergy:     100,
