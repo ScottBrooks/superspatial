@@ -344,44 +344,29 @@ func (cs *ClientScene) NewEffect(e *EffectComponent) *ClientEffect {
 func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	cs.ServerScene.OnComponentUpdate(op)
 
-	if op.CID == cidShip {
-		s, ok := op.Component.(*ShipComponent)
-		if !ok {
-			log.Printf("Expected ShipComponent but not found")
-		}
+	switch c := op.Component.(type) {
+	case *ShipComponent:
 		ship := cs.Ships[op.ID]
-		ship.ShipComponent = *s
+		ship.ShipComponent = *c
 		if op.ID == cs.PIS.ID {
 			ship, ok := cs.Ships[op.ID]
 			if ok {
 				cs.Camera.SpaceComponent = &ship.SpaceComponent
 			}
 		}
-
-	}
-	if op.CID == cidBullet {
-		b, ok := op.Component.(*BulletComponent)
-		if !ok {
-			log.Printf("Expected Bullet component but not found")
-		}
+	case *BulletComponent:
 		bullet := cs.Bullets[op.ID]
-		bullet.BulletComponent = *b
-	}
-	if op.CID == cidWorkerBalancer {
-		wc, ok := op.Component.(*WorkerComponent)
-		log.Printf("Got a WC: %+v", wc)
-		if !ok {
-			log.Printf("Expected worker balancer component found")
-		}
+		bullet.BulletComponent = *c
+	case *WorkerComponent:
 		ship, ok := cs.Ships[op.ID]
 		if ok {
-			if ship.WorkerComponent.WorkerID != wc.WorkerID {
+			if ship.WorkerComponent.WorkerID != c.WorkerID {
 				ship.text.RenderComponent.Drawable = common.Text{
 					Font: cs.Font,
-					Text: fmt.Sprintf("Worker: %d", wc.WorkerID),
+					Text: fmt.Sprintf("Worker: %d", c.WorkerID),
 				}
 			}
-			ship.WorkerComponent = *wc
+			ship.WorkerComponent = *c
 		}
 	}
 }
@@ -390,36 +375,22 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 	//cs.ServerScene.OnAddComponent(op)
 	log.Printf("Client add componeont: %+v", op)
 
-	if op.CID == cidShip {
-		s, ok := op.Component.(*ShipComponent)
-		if !ok {
-			log.Printf("Expected ShipComponent but not found")
-		}
-		ship := cs.NewShip(s)
+	switch c := op.Component.(type) {
+	case *ShipComponent:
+		ship := cs.NewShip(c)
 		cs.EntToEcs[op.ID] = ship.ID()
 		cs.Ships[op.ID] = ship
-	}
-	if op.CID == cidBullet {
-		b, ok := op.Component.(*BulletComponent)
-		if !ok {
-			log.Printf("Expected BulletComponent but not found")
-		}
+	case *BulletComponent:
 		_, hasBullet := cs.EntToEcs[op.ID]
 		if !hasBullet {
-			bullet := cs.NewBullet(b)
+			bullet := cs.NewBullet(c)
 			cs.EntToEcs[op.ID] = bullet.ID()
 			cs.Bullets[op.ID] = bullet
 		}
-	}
-	if op.CID == cidEffect {
-		e, ok := op.Component.(*EffectComponent)
-		log.Printf("Add Component: %+v", e)
-		if !ok {
-			log.Printf("Expected effect component but not found")
-		}
+	case *EffectComponent:
 		_, hasEffect := cs.EntToEcs[op.ID]
 		if !hasEffect {
-			effect := cs.NewEffect(e)
+			effect := cs.NewEffect(c)
 			cs.EntToEcs[op.ID] = effect.ID()
 			cs.Effects[op.ID] = effect
 		}

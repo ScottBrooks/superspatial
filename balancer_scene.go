@@ -90,47 +90,44 @@ func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
 }
 
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
-	impWorker, ok := op.Component.(*ImprobableWorker)
-	if ok && (impWorker.WorkerType == "LauncherClient" || impWorker.WorkerType == "Bot") {
-		bs.Clients[op.ID] = impWorker.WorkerType
+	switch c := op.Component.(type) {
+	case *ImprobableWorker:
+		switch c.WorkerType {
+		case "LauncherClient", "Bot":
+			bs.Clients[op.ID] = c.WorkerType
 
-		bs.updateWorkerProcesses()
-		bs.CreateClientShip(impWorker.WorkerID)
-	}
-	if ok && impWorker.WorkerType == "Server" {
-		bs.WorkersAdjusting = false
-
-		ent := NewServerWorker()
-		reqID := bs.spatial.CreateEntity(ent)
-		bs.OnCreateFunc[reqID] = func(ID sos.EntityID) {
-			ent.ID = ID
-			log.Printf("Create complete")
-
-			pid, err := strconv.Atoi(strings.TrimPrefix(impWorker.WorkerID, "Server_"))
-			if err != nil {
-				log.Printf("Expected to be able to turn worker id into a pid", err)
-			}
-
-			proc, err := os.FindProcess(pid)
-			if err != nil {
-				log.Printf("Expected to be able to find process: %v", err)
-			}
-			bs.Workers = append(bs.Workers, balancedWorker{WorkerID: impWorker.WorkerID, WorkerEntityID: op.ID, ID: ID, Process: proc})
 			bs.updateWorkerProcesses()
+			bs.CreateClientShip(c.WorkerID)
+		case "Server":
+			bs.WorkersAdjusting = false
 
-			bs.checkEntityBounds()
+			ent := NewServerWorker()
+			reqID := bs.spatial.CreateEntity(ent)
+			bs.OnCreateFunc[reqID] = func(ID sos.EntityID) {
+				ent.ID = ID
+				log.Printf("Create complete")
+
+				pid, err := strconv.Atoi(strings.TrimPrefix(c.WorkerID, "Server_"))
+				if err != nil {
+					log.Printf("Expected to be able to turn worker id into a pid", err)
+				}
+
+				proc, err := os.FindProcess(pid)
+				if err != nil {
+					log.Printf("Expected to be able to find process: %v", err)
+				}
+				bs.Workers = append(bs.Workers, balancedWorker{WorkerID: c.WorkerID, WorkerEntityID: op.ID, ID: ID, Process: proc})
+				bs.updateWorkerProcesses()
+
+				bs.checkEntityBounds()
+			}
 		}
-	}
-	if op.CID == cidACL {
+	case *ImprobableACL:
 		bs.Entities[op.ID].ACL = *op.Component.(*ImprobableACL)
-	}
-	if op.CID == cidBullet {
-		log.Printf("It's a bullet")
 	}
 }
 
 func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
-
 	_, ok := bs.Clients[op.ID]
 	if ok {
 		delete(bs.Clients, op.ID)
@@ -149,7 +146,6 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 		}
 		bs.updateWorkerProcesses()
 	}
-
 }
 
 func (bs *BalancerScene) OnRemoveEntity(op sos.RemoveEntityOp) {

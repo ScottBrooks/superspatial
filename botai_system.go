@@ -53,6 +53,6 @@ func (bas *BotAISystem) Update(dt float32) {
 		}
 
 		// Disable AI updating
-		//bas.SS.spatial.UpdateComponent(bas.Ship.ID, cidPlayerInput, bas.Ship.PlayerInput)
+		bas.SS.spatial.UpdateComponent(bas.Ship.ID, cidPlayerInput, bas.Ship.PlayerInput)
 	}
 }

@@ -240,32 +240,25 @@ func (ServerScene) OnEntityQuery(op sos.EntityQueryOp) {
 }
 
 func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
-	log.Debugf("OnAddCOmponent: %+v %+v", op, op.Component)
-	/*
-		impWorker, ok := op.Component.(*ImprobableWorker)
-		if ok && impWorker.WorkerType == "LauncherClient" {
-			ss.OnClientConnect(op.ID, impWorker.WorkerID)
-		}
-	*/
-	if op.CID == cidShip {
+	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
+	switch c := op.Component.(type) {
+	case *ShipComponent:
 		log.Printf("Making a new ship")
 		ent := NewShip(mgl32.Vec2{}, "")
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, ent.Ship.Radius)
-	}
-	if op.CID == cidBullet {
+	case *BulletComponent:
 		log.Printf("Making a new bullet")
 		ent := Bullet{}
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, 1)
-	}
-	if op.CID == cidEffect {
+	case *EffectComponent:
 		go func() {
-			time.Sleep(time.Duration(op.Component.(*EffectComponent).Expiry) * time.Millisecond)
+			time.Sleep(time.Duration(c.Expiry) * time.Millisecond)
 
 			log.Printf("Deleting the effect after expiry")
 			engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
@@ -292,25 +285,26 @@ func (ss *ServerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 }
 
 func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
-	if op.CID == 58 && op.Authority == 1 {
-		e := ss.Entities[op.ID]
-		s, ok := e.(*Ship)
-		if !ok {
-			log.Printf("UNable to cast :%+v to ship", e)
+	switch op.CID {
+	case cidInterest:
+		if op.Authority == 1 {
+			e := ss.Entities[op.ID]
+			s, ok := e.(*Ship)
+			if !ok {
+				log.Printf("UNable to cast :%+v to ship", e)
+			}
+			if ok {
+				ss.spatial.UpdateComponent(s.ID, cidInterest, s.Interest)
+			}
 		}
-		if ok {
-			ss.spatial.UpdateComponent(s.ID, 58, s.Interest)
-		}
-	}
-	if op.CID == cidShip {
+	case cidShip:
 		log.Printf("Authority change for ship: %+v", op)
 		e := ss.Entities[op.ID]
 		s, ok := e.(*Ship)
 		if ok {
 			s.HasAuthority = op.Authority == 1
 		}
-	}
-	if op.CID == cidBullet {
+	case cidBullet:
 		log.Printf("Authority change for bullet: %+v", op)
 		e := ss.Entities[op.ID]
 		b, ok := e.(*Bullet)
@@ -323,18 +317,12 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 func (ss *ServerScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 	shipEnt, ok := ss.Entities[op.ID].(*Ship)
 	if ok {
-		switch op.CID {
-		case cidShip:
-			shipEnt.Ship = *op.Component.(*ShipComponent)
-		case cidPlayerInput:
-			shipEnt.PIC = *op.Component.(*PlayerInputComponent)
-		}
-	}
-	bulletEnt, ok := ss.Entities[op.ID].(*Bullet)
-	if ok {
-		switch op.CID {
-		case cidBullet:
-			bulletEnt.Bullet = *op.Component.(*BulletComponent)
+		switch c := op.Component.(type) {
+		case *ShipComponent:
+			shipEnt.Ship = *c
+		case *PlayerInputComponent:
+			shipEnt := ss.Entities[op.ID].(*Ship)
+			shipEnt.PIC = *c
 		}
 	}
 }
