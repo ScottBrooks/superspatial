@@ -78,7 +78,7 @@ func NewShip(sp mgl32.Vec2, clientWorkerID string) Ship {
 		BasicEntity:        ecs.NewBasic(),
 		CollisionComponent: common.CollisionComponent{Main: 1, Group: 1, Collides: 1 | 2},
 		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{sp[0], sp[1]},
+			Position: engo.Point{X: sp[0], Y: sp[1]},
 			Width:    64,
 			Height:   64,
 		},

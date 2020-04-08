@@ -109,7 +109,7 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 
 				pid, err := strconv.Atoi(strings.TrimPrefix(c.WorkerID, "Server_"))
 				if err != nil {
-					log.Printf("Expected to be able to turn worker id into a pid", err)
+					log.Printf("Expected to be able to turn worker id into a pid: %+v", err)
 				}
 
 				proc, err := os.FindProcess(pid)
@@ -242,8 +242,6 @@ func (bs *BalancerScene) checkEntityBounds() {
 			for i, w := range bs.Workers {
 				if aabbContains(w.AABB, e.Pos.Coords) {
 					bs.adjustAcl(i, e, w)
-				} else {
-					//log.Printf("Worker %+v does not contain %v", w, e.Pos.Coords)
 				}
 			}
 		}
@@ -296,7 +294,7 @@ func (bs *BalancerScene) updateWorkerProcesses() {
 		bs.startWorker()
 	}
 	if reqWorkers < numWorkers && !bs.WorkersAdjusting {
-		log.Printf("We are killing a worker: %d")
+		log.Printf("We are killing a worker")
 		bs.stopWorker()
 	}
 }
@@ -318,8 +316,7 @@ func (bs *BalancerScene) CreateClientShip(WorkerID string) {
 }
 
 func (bs *BalancerScene) startWorker() {
-	var cmd *exec.Cmd
-	cmd = exec.Command("./server", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
+	cmd := exec.Command("./server", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -342,14 +339,17 @@ func (bs *BalancerScene) stopWorker() {
 		log.Printf("Proc is nil for worker: %v", bs.Workers[0])
 	}
 	log.Printf("Killing worker: %+v", proc)
-	proc.Kill()
+	err := proc.Kill()
+	if err != nil {
+		log.Printf("error stoping worker: %+v", err)
+		return
+	}
 	p, err := proc.Wait()
 	log.Printf("P: %+v Err: %+v", p, err)
 }
 
 func (bs *BalancerScene) startBot() {
-	var cmd *exec.Cmd
-	cmd = exec.Command("./bot", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
+	cmd := exec.Command("./bot", "-host", bs.ServerScene.Host, "-port", strconv.Itoa(bs.ServerScene.Port))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
@@ -368,7 +368,11 @@ func (bs *BalancerScene) stopBot() {
 
 	proc := bs.BotProcesses[0]
 	log.Printf("Killing bot: %+v", proc)
-	proc.Kill()
+	err := proc.Kill()
+	if err != nil {
+		log.Printf("Error stoping worker: %+v", err)
+		return
+	}
 	p, err := proc.Wait()
 	log.Printf("P: %+v Err: %+v", p, err)
 	bs.BotProcesses = bs.BotProcesses[1:]
@@ -385,8 +389,8 @@ func (bs *BalancerScene) rebalanceAuthority() {
 			i := y*cellCount + x
 			w := bs.Workers[i]
 			bounds := engo.AABB{
-				Min: engo.Point{float32(x * xSize), float32(y * ySize)},
-				Max: engo.Point{float32(x*xSize + xSize), float32(y*ySize + ySize)},
+				Min: engo.Point{X: float32(x * xSize), Y: float32(y * ySize)},
+				Max: engo.Point{X: float32(x*xSize + xSize), Y: float32(y*ySize + ySize)},
 			}
 			bs.setWorkerACL(w.ID, w.WorkerID, bounds)
 			log.Printf("Bounds[%d, %d]: %d %+v", x, y, i, bounds)
@@ -401,8 +405,6 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 	ShipCID := uint32(cidShip)
 	PlayerInputCID := uint32(cidPlayerInput)
 	EffectCID := uint32(cidEffect)
-
-	workerID = "workerId:" + workerID
 
 	readAttrSet := []WorkerAttributeSet{
 		{[]string{"position"}},

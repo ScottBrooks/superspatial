@@ -15,7 +15,7 @@ import (
 	"github.com/ScottBrooks/sos"
 )
 
-var worldBounds = engo.AABB{Max: engo.Point{2048, 1024}}
+var worldBounds = engo.AABB{Max: engo.Point{X: 2048, Y: 1024}}
 var logger = logrus.New()
 var log = logrus.NewEntry(logger)
 

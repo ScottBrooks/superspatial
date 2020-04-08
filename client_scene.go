@@ -20,15 +20,6 @@ type MenuSprite struct {
 	common.SpaceComponent
 }
 
-func mustLoadSprite(sprite string) *common.Texture {
-	tex, err := common.LoadedSprite(sprite)
-	if err != nil {
-		panic(err)
-	}
-
-	return tex
-}
-
 type ClientScene struct {
 	ServerScene
 
@@ -91,7 +82,7 @@ func (cs *ClientShip) Predict(dt float32) {
 	newPos := cs.ShipComponent.Pos.Add(cs.ShipComponent.Vel.Mul(dt))
 	cs.ShipComponent.Pos = cs.ShipComponent.Pos.Mul(0.5).Add(newPos.Mul(0.5))
 
-	cs.SpaceComponent.SetCenter(engo.Point{cs.ShipComponent.Pos[0], cs.ShipComponent.Pos[1]})
+	cs.SpaceComponent.SetCenter(engo.Point{X: cs.ShipComponent.Pos[0], Y: cs.ShipComponent.Pos[1]})
 	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle - 90
 	cs.text.SpaceComponent = cs.SpaceComponent
 	cs.text.SpaceComponent.Rotation = 0
@@ -104,18 +95,28 @@ type Background struct {
 }
 
 func (cs *ClientScene) Preload() {
-	engo.Files.Load("Ships/ship-aqua.png")
-	engo.Files.Load("Ships/ship-blue.png")
-	engo.Files.Load("Ships/ship-green.png")
-	engo.Files.Load("Ships/ship-orange.png")
-	engo.Files.Load("Ships/ship-red.png")
-	engo.Files.Load("Backgrounds/stars.png")
-	engo.Files.Load("UI/Upgrade/Health.png")
-	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_1.png")
-	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
-	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_3.png")
-	engo.Files.LoadReaderData("go.ttf", bytes.NewReader(gosmallcaps.TTF))
-	engo.Files.Load("Ships/Explosion/explosion.png")
+	for _, asset := range []string{
+		"Ships/ship-aqua.png",
+		"Ships/ship-blue.png",
+		"Ships/ship-green.png",
+		"Ships/ship-orange.png",
+		"Ships/ship-red.png",
+		"Backgrounds/stars.png",
+		"UI/Upgrade/Health.png",
+		"UI/Loading_Bar/Loading_Bar_2_1.png",
+		"UI/Loading_Bar/Loading_Bar_2_2.png",
+		"UI/Loading_Bar/Loading_Bar_2_3.png",
+		"Ships/Explosion/explosion.png",
+	} {
+		err := engo.Files.Load(asset)
+		if err != nil {
+			panic(err)
+		}
+	}
+	err := engo.Files.LoadReaderData("go.ttf", bytes.NewReader(gosmallcaps.TTF))
+	if err != nil {
+		panic(err)
+	}
 
 }
 
@@ -168,7 +169,10 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 		FG:   color.White,
 		Size: 24,
 	}
-	cs.Font.CreatePreloaded()
+	err := cs.Font.CreatePreloaded()
+	if err != nil {
+		log.Printf("Err preloading font: %+v", err)
+	}
 	// Once we have found our camera system, hook up our hud system
 	cs.HS = HudSystem{Pos: &cs.HUDPos, Camera: cs.CS}
 	w.AddSystem(&cs.HS)
@@ -181,10 +185,10 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 		BasicEntity: ecs.NewBasic(),
 		RenderComponent: common.RenderComponent{
 			Drawable: backgroundImage,
-			Scale:    engo.Point{1, 1},
+			Scale:    engo.Point{X: 1, Y: 1},
 		},
 		SpaceComponent: common.SpaceComponent{
-			Position: engo.Point{0, 0},
+			Position: engo.Point{X: 0, Y: 0},
 			Width:    worldBounds.Max.X,
 			Height:   worldBounds.Max.Y,
 		},
@@ -224,11 +228,11 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 		log.Printf("UNable to load texture: %+v", err)
 	}
 
-	spawnPoint := engo.Point{s.Pos[0], s.Pos[1]}
+	spawnPoint := engo.Point{X: s.Pos[0], Y: s.Pos[1]}
 
 	ship.RenderComponent = common.RenderComponent{
 		Drawable: texture,
-		Scale:    engo.Point{1, 1},
+		Scale:    engo.Point{X: 1, Y: 1},
 	}
 
 	ship.SpaceComponent = common.SpaceComponent{
@@ -270,14 +274,14 @@ func (cs *ClientScene) NewEffect(e *EffectComponent) *ClientEffect {
 	case 1:
 		effect.RenderComponent = common.RenderComponent{
 			Drawable: spriteSheet.Cell(0),
-			Scale:    engo.Point{1, 1},
+			Scale:    engo.Point{X: 1, Y: 1},
 		}
 		effect.SpaceComponent = common.SpaceComponent{
-			Position: engo.Point{e.Pos[0], e.Pos[1]},
+			Position: engo.Point{X: e.Pos[0], Y: e.Pos[1]},
 			Width:    128 * effect.RenderComponent.Scale.X,
 			Height:   128 * effect.RenderComponent.Scale.Y,
 		}
-		effect.SpaceComponent.SetCenter(engo.Point{e.Pos[0], e.Pos[1]})
+		effect.SpaceComponent.SetCenter(engo.Point{X: e.Pos[0], Y: e.Pos[1]})
 		// Effects go slightly behind ships
 		effect.RenderComponent.SetZIndex(9)
 
@@ -370,5 +374,5 @@ type ClientEffect struct {
 }
 
 func (ce *ClientEffect) HasExpired() bool {
-	return time.Now().Sub(ce.CreatedAt) > time.Duration(ce.EffectComponent.Expiry)
+	return time.Since(ce.CreatedAt) > time.Duration(ce.EffectComponent.Expiry)
 }

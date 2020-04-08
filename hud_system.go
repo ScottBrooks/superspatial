@@ -30,7 +30,7 @@ func (hs *HudSystem) Update(dt float32) {
 
 	for _, e := range hs.Entities {
 		offset := e.Offset
-		offset.Add(*hs.Pos).Add(engo.Point{hs.Camera.X(), hs.Camera.Y()}).Add(e.Offset).Subtract(common.CameraBounds.Min)
+		offset.Add(*hs.Pos).Add(engo.Point{X: hs.Camera.X(), Y: hs.Camera.Y()}).Add(e.Offset).Subtract(common.CameraBounds.Min)
 		e.SpaceComponent.Position = offset
 	}
 }
