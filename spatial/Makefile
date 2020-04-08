@@ -47,6 +47,7 @@ build-container:
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 .PHONY: deploy
+deploy: export MSYS_NO_PATHCONV=1
 deploy:
 	rm -rf build/LauncherClient
 	rm -rf build/balancer
@@ -57,11 +58,9 @@ deploy:
 	cp ../../sos/improbable_worker.dll build/LauncherClient
 	cp -r ../assets build/LauncherClient/
 	cp -r launcher_client_config.json build/LauncherClient/
-	docker run -v $(ROOT_DIR)/../../:/work -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/balancer/server cmd/server/main.go; go build -o spatial/build/balancer/balancer cmd/balancer/main.go"
+	#docker run -v $(ROOT_DIR)/../../:/work -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/balancer/server cmd/server/main.go; go build -o spatial/build/balancer/balancer cmd/balancer/main.go; go build -o spatial/build/balancer/bot cmd/bot/main.go"
+	docker run -v "/c/work:/work" -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/balancer/server cmd/server/main.go; go build -o spatial/build/balancer/balancer cmd/balancer/main.go; go build -o spatial/build/balancer/bot cmd/bot/main.go"
 	cp ../../sos/libimprobable_worker.so build/balancer
-	chmod +x build/balancer/server
-	chmod +x build/balancer/balancer
-	chmod +x build/balancer/libimprobable_worker.so
 	spatial alpha cloud upload -a superspatial --force
 	spatial alpha cloud launch -d superspatial -a superspatial 
 
