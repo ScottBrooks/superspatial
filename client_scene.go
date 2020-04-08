@@ -80,9 +80,9 @@ func (cs *ClientShip) Predict(dt float32) {
 
 	// Add 50% of our new position and 50% of our old position.
 	newPos := cs.ShipComponent.Pos.Add(cs.ShipComponent.Vel.Mul(dt))
-	cs.ShipComponent.Pos = cs.ShipComponent.Pos.Mul(0.5).Add(newPos.Mul(0.5))
+	avgPos := cs.ShipComponent.Pos.Mul(0.5).Add(newPos.Mul(0.5))
 
-	cs.SpaceComponent.SetCenter(engo.Point{X: cs.ShipComponent.Pos[0], Y: cs.ShipComponent.Pos[1]})
+	cs.SpaceComponent.SetCenter(engo.Point{X: avgPos[0], Y: avgPos[1]})
 	cs.SpaceComponent.Rotation = cs.ShipComponent.Angle - 90
 	cs.text.SpaceComponent = cs.SpaceComponent
 	cs.text.SpaceComponent.Rotation = 0
