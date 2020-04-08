@@ -216,7 +216,7 @@ func (bs *BalancerScene) adjustAcl(i int, e *balancedEntity, w balancedWorker) {
 	workerID := "workerId:" + w.WorkerID
 
 	// Update our ACL entries that varry per worker.
-	for _, cid := range []uint32{cidShip, cidBullet, cidPosition, cidEffect} {
+	for _, cid := range []uint32{cidShip, cidPosition, cidEffect} {
 		if _, ok := e.ACL.ComponentWriteAcl[cid]; ok {
 			e.ACL.ComponentWriteAcl[cid] = WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}}
 		}
@@ -399,7 +399,6 @@ func (bs *BalancerScene) rebalanceAuthority() {
 func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds engo.AABB) {
 	log.Printf("Setting WorkerACL for worker: %d %s %+v", ID, workerID, bounds)
 	ShipCID := uint32(cidShip)
-	BulletCID := uint32(cidBullet)
 	PlayerInputCID := uint32(cidPlayerInput)
 	EffectCID := uint32(cidEffect)
 
@@ -427,7 +426,6 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 			QBIConstraint{
 				OrConstraint: []QBIConstraint{
 					QBIConstraint{ComponentIDConstraint: &ShipCID},
-					QBIConstraint{ComponentIDConstraint: &BulletCID},
 					QBIConstraint{ComponentIDConstraint: &EffectCID},
 					QBIConstraint{ComponentIDConstraint: &PlayerInputCID},
 				},
@@ -440,21 +438,9 @@ func (bs *BalancerScene) setWorkerACL(ID sos.EntityID, workerID string, bounds e
 
 			cidPosition: ComponentInterest{
 				Queries: []QBIQuery{
-					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidEffect, cidBullet, cidPlayerInput}},
+					{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidEffect, cidPlayerInput}},
 				},
 			},
-			/*
-				cidShip: ComponentInterest{
-					Queries: []QBIQuery{
-						{Constraint: constraint, ResultComponents: []uint32{cidShip, cidPosition, cidEffect, cidPlayerInput}},
-					},
-				},
-				cidBullet: ComponentInterest{
-					Queries: []QBIQuery{
-						{Constraint: constraint, ResultComponents: []uint32{cidBullet, cidPosition}},
-					},
-				},
-			*/
 		},
 	}
 	acl := ImprobableACL{ComponentWriteAcl: writeAcl, ReadAcl: readAcl}

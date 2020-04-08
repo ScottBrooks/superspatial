@@ -42,16 +42,6 @@ func (sps *SpatialPumpSystem) Update(dt float32) {
 				sps.SS.spatial.UpdateComponent(ent.ID, cidShip, ent.Ship)
 				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
 			}
-		case *Bullet:
-			ent.Update(dt)
-			if ent.HasAuthority {
-				sps.SS.spatial.UpdateComponent(ent.ID, cidBullet, ent.Bullet)
-				sps.SS.spatial.UpdateComponent(ent.ID, cidPosition, ent.Pos)
-				if !sps.SS.InBounds(ent.Bullet.Pos) {
-					log.Printf("Bullet is out of bounds: %d %+v", ent.ID, ent.Bullet.Pos)
-					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: ent.ID})
-				}
-			}
 		}
 	}
 }
@@ -115,7 +105,6 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 	w.AddSystem(&ss.phys)
 	w.AddSystem(&SpatialPumpSystem{ss})
-	w.AddSystem(&AttackSystem{SS: ss})
 	w.AddSystem(&ss.CircleCollisionSystem)
 
 	engo.Mailbox.Listen(DeleteEntityMessage{}.Type(), func(msg engo.Message) {
@@ -249,13 +238,6 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		ss.Entities[op.ID] = &ent
 		ss.ECS[ent.BasicEntity.ID()] = &ent
 		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, ent.Ship.Radius)
-	case *BulletComponent:
-		log.Printf("Making a new bullet")
-		ent := Bullet{}
-		ent.ID = op.ID
-		ss.Entities[op.ID] = &ent
-		ss.ECS[ent.BasicEntity.ID()] = &ent
-		ss.CircleCollisionSystem.Add(&ent.BasicEntity, &ent.SpaceComponent, 1)
 	case *EffectComponent:
 		go func() {
 			time.Sleep(time.Duration(c.Expiry) * time.Millisecond)
@@ -304,13 +286,6 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 		if ok {
 			s.HasAuthority = op.Authority == 1
 		}
-	case cidBullet:
-		log.Printf("Authority change for bullet: %+v", op)
-		e := ss.Entities[op.ID]
-		b, ok := e.(*Bullet)
-		if ok {
-			b.HasAuthority = op.Authority == 1
-		}
 	}
 }
 
@@ -343,8 +318,6 @@ func (ss *ServerScene) AllocComponent(ID sos.EntityID, CID sos.ComponentID) (int
 		return &ImprobableWorker{}, nil
 	case cidShip:
 		return &ShipComponent{}, nil
-	case cidBullet:
-		return &BulletComponent{}, nil
 	case cidGame:
 		return &SpatialGameComponent{}, nil
 	case cidPlayerInput:

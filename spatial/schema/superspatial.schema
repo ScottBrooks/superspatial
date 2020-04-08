@@ -11,15 +11,6 @@ component Ship {
 	float radius = 4;
 }
 
-component Bullet {
-	id = 1001;
-	EntityId ship_id = 1;
-	uint32 damage = 2;
-	
-	list<float> pos = 3;
-	list<float> vel = 4;
-}
-
 component Game {
 	id = 1002;
 }

@@ -10,7 +10,6 @@ type TrackedEntity struct {
 	ID sos.EntityID
 
 	Ship        ShipComponent
-	Bullet      BulletComponent
 	Pos         ImprobablePosition
 	PlayerInput PlayerInputComponent
 }
@@ -70,8 +69,6 @@ func (bs *BotScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 		ent.Pos = *c
 	case *ShipComponent:
 		ent.Ship = *c
-	case *BulletComponent:
-		ent.Bullet = *c
 	}
 }
 

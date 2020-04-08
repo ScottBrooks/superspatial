@@ -55,14 +55,6 @@ type ShipComponent struct {
 	Radius float32
 }
 
-type BulletComponent struct {
-	ShipID sos.EntityID
-	Damage uint32
-
-	Pos mgl32.Vec3
-	Vel mgl32.Vec3
-}
-
 type PlayerInputComponent struct {
 	Left    bool
 	Right   bool

@@ -45,7 +45,6 @@ type ClientScene struct {
 
 	EntToEcs map[sos.EntityID]uint64
 	Ships    map[sos.EntityID]*ClientShip
-	Bullets  map[sos.EntityID]*ClientBullet
 	Effects  map[sos.EntityID]*ClientEffect
 }
 
@@ -68,20 +67,6 @@ func (pis *PlayerInputSystem) Update(dt float32) {
 		pis.spatial.UpdateComponent(pis.ID, cidPlayerInput, p)
 	}
 
-}
-
-type ClientBullet struct {
-	ecs.BasicEntity
-	common.RenderComponent
-	common.SpaceComponent
-
-	BulletComponent
-}
-
-func (cb *ClientBullet) Predict(dt float32) {
-	cb.BulletComponent.Pos = cb.BulletComponent.Pos.Add(cb.BulletComponent.Vel.Mul(dt))
-
-	cb.SpaceComponent.SetCenter(engo.Point{cb.BulletComponent.Pos[0], cb.BulletComponent.Pos[1]})
 }
 
 type Text struct {
@@ -125,7 +110,6 @@ func (cs *ClientScene) Preload() {
 	engo.Files.Load("Ships/ship-orange.png")
 	engo.Files.Load("Ships/ship-red.png")
 	engo.Files.Load("Backgrounds/stars.png")
-	engo.Files.Load("Ships/bullet.png")
 	engo.Files.Load("UI/Upgrade/Health.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_1.png")
 	engo.Files.Load("UI/Loading_Bar/Loading_Bar_2_2.png")
@@ -161,7 +145,6 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 	cs.OnCreateFunc = map[sos.RequestID]func(ID sos.EntityID){}
 	cs.EntToEcs = map[sos.EntityID]uint64{}
 	cs.Ships = map[sos.EntityID]*ClientShip{}
-	cs.Bullets = map[sos.EntityID]*ClientBullet{}
 	cs.Effects = map[sos.EntityID]*ClientEffect{}
 	cs.Explosion = &common.Animation{Name: "explosion", Frames: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}}
 
@@ -224,10 +207,6 @@ func (cs *ClientScene) Setup(u engo.Updater) {
 				w.RemoveEntity(ship.BasicEntity)
 				w.RemoveEntity(ship.text.BasicEntity)
 			}
-			bullet := cs.Bullets[delete.ID]
-			if bullet != nil {
-				w.RemoveEntity(bullet.BasicEntity)
-			}
 			effect := cs.Effects[delete.ID]
 			if effect != nil {
 				w.RemoveEntity(effect.BasicEntity)
@@ -277,36 +256,6 @@ func (cs *ClientScene) NewShip(s *ShipComponent) *ClientShip {
 	return &ship
 }
 
-func (cs *ClientScene) NewBullet(b *BulletComponent) *ClientBullet {
-	log.Printf("Got a new bullet:%+v", b)
-	bullet := ClientBullet{BasicEntity: ecs.NewBasic()}
-	texture, err := common.LoadedSprite("Ships/bullet.png")
-	if err != nil {
-		log.Printf("Unable to load texture: %v", err)
-	}
-
-	bullet.BulletComponent = *b
-	bullet.RenderComponent = common.RenderComponent{
-		Drawable: texture,
-		Scale:    engo.Point{1, 1},
-	}
-
-	bullet.SpaceComponent = common.SpaceComponent{
-		Position: engo.Point{b.Pos[0], b.Pos[1]},
-		Width:    texture.Width() * bullet.RenderComponent.Scale.X,
-		Height:   texture.Height() * bullet.RenderComponent.Scale.Y,
-	}
-	bullet.SpaceComponent.SetCenter(engo.Point{texture.Width() / 2, texture.Height() / 2})
-	// Bullets go slightly behind ships
-	bullet.RenderComponent.SetZIndex(9)
-	cs.R.Add(&bullet.BasicEntity, &bullet.RenderComponent, &bullet.SpaceComponent)
-
-	cs.CPS.Add(&bullet)
-	log.Printf("Add bullet: %+v", bullet)
-
-	return &bullet
-}
-
 func (cs *ClientScene) NewEffect(e *EffectComponent) *ClientEffect {
 	log.Printf("Got a new effect: %v", e)
 
@@ -329,7 +278,7 @@ func (cs *ClientScene) NewEffect(e *EffectComponent) *ClientEffect {
 			Height:   128 * effect.RenderComponent.Scale.Y,
 		}
 		effect.SpaceComponent.SetCenter(engo.Point{e.Pos[0], e.Pos[1]})
-		// Bullets go slightly behind ships
+		// Effects go slightly behind ships
 		effect.RenderComponent.SetZIndex(9)
 
 		log.Printf("Space Component: %+v", effect.SpaceComponent)
@@ -354,9 +303,6 @@ func (cs *ClientScene) OnComponentUpdate(op sos.ComponentUpdateOp) {
 				cs.Camera.SpaceComponent = &ship.SpaceComponent
 			}
 		}
-	case *BulletComponent:
-		bullet := cs.Bullets[op.ID]
-		bullet.BulletComponent = *c
 	case *WorkerComponent:
 		ship, ok := cs.Ships[op.ID]
 		if ok {
@@ -380,13 +326,6 @@ func (cs *ClientScene) OnAddComponent(op sos.AddComponentOp) {
 		ship := cs.NewShip(c)
 		cs.EntToEcs[op.ID] = ship.ID()
 		cs.Ships[op.ID] = ship
-	case *BulletComponent:
-		_, hasBullet := cs.EntToEcs[op.ID]
-		if !hasBullet {
-			bullet := cs.NewBullet(c)
-			cs.EntToEcs[op.ID] = bullet.ID()
-			cs.Bullets[op.ID] = bullet
-		}
 	case *EffectComponent:
 		_, hasEffect := cs.EntToEcs[op.ID]
 		if !hasEffect {
