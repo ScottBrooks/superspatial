@@ -49,7 +49,6 @@ func (bs *BotScene) OnAddEntity(op sos.AddEntityOp) {
 
 func (bs *BotScene) OnRemoveEntity(op sos.RemoveEntityOp) {
 	if bs.Entities[op.ID] != nil {
-		log.Printf("Deleting entity: %d", op.ID)
 		delete(bs.Entities, op.ID)
 	}
 }

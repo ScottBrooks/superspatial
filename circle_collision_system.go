@@ -52,7 +52,6 @@ func (ccs *CircleCollisionSystem) Update(dt float32) {
 					A: &a,
 					B: &b,
 				})
-				log.Printf("Collision!")
 			}
 		}
 	}

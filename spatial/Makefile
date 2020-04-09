@@ -61,6 +61,7 @@ deploy:
 	#docker run -v $(ROOT_DIR)/../../:/work -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/balancer/server cmd/server/main.go; go build -o spatial/build/balancer/balancer cmd/balancer/main.go; go build -o spatial/build/balancer/bot cmd/bot/main.go"
 	docker run -v "/c/work:/work" -ti xgo-bash bash -c "cd /work/superspatial; go build -o spatial/build/balancer/server cmd/server/main.go; go build -o spatial/build/balancer/balancer cmd/balancer/main.go; go build -o spatial/build/balancer/bot cmd/bot/main.go"
 	cp ../../sos/libimprobable_worker.so build/balancer
+	spatial cloud delete superspatial
 	spatial alpha cloud upload -a superspatial --force
 	spatial alpha cloud launch -d superspatial -a superspatial 
 

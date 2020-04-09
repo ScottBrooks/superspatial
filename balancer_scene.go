@@ -2,7 +2,6 @@ package superspatial
 
 import (
 	"math"
-	"math/bits"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -90,11 +89,13 @@ func (bs *BalancerScene) OnAddEntity(op sos.AddEntityOp) {
 }
 
 func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
+	log.Printf("OnAddComponent: %+v, %+v", op, op.Component)
 	switch c := op.Component.(type) {
 	case *ImprobableWorker:
+		log.Printf("C: %+v", c)
 		switch c.WorkerType {
 		case "LauncherClient", "Bot":
-			bs.Clients[op.ID] = c.WorkerType
+			bs.Clients[op.ID] = c.WorkerID
 
 			bs.updateWorkerProcesses()
 			bs.CreateClientShip(c.WorkerID)
@@ -128,7 +129,7 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 }
 
 func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
-	_, ok := bs.Clients[op.ID]
+	client, ok := bs.Clients[op.ID]
 	if ok {
 		delete(bs.Clients, op.ID)
 	}
@@ -141,10 +142,22 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 			}
 		}
 		if toDelete != -1 {
+			log.Printf("Deleting worker:%+v", bs.Workers[toDelete])
 			bs.spatial.Delete(bs.Workers[toDelete].ID)
 			bs.Workers = append(bs.Workers[:toDelete], bs.Workers[toDelete+1:]...)
 		}
 		bs.updateWorkerProcesses()
+
+		// When a worker(client in this case) disconnects, try to find any of their entities and delete those.
+		if client != "" {
+
+			for _, e := range bs.Entities {
+				if e.Client == client {
+					log.Printf("Gonna delete entity: %+v", e)
+					bs.spatial.Delete(e.ID)
+				}
+			}
+		}
 	}
 }
 
@@ -209,7 +222,6 @@ func aabbContains(aabb engo.AABB, pt Coordinates) bool {
 	return aabb.Min.X <= float32(pt.X) && aabb.Max.X > float32(pt.X) && aabb.Min.Y <= float32(pt.Z) && aabb.Max.Y > float32(pt.Z)
 }
 func (bs *BalancerScene) adjustAcl(i int, e *balancedEntity, w balancedWorker) {
-	log.Printf("Moving Entity %d from Worker: %d to %d", e.ID, e.Worker.WorkerID, i)
 	e.Worker.WorkerID = int32(i)
 	bs.spatial.UpdateComponent(e.ID, cidWorkerBalancer, e.Worker)
 
@@ -221,8 +233,6 @@ func (bs *BalancerScene) adjustAcl(i int, e *balancedEntity, w balancedWorker) {
 			e.ACL.ComponentWriteAcl[cid] = WorkerRequirementSet{[]WorkerAttributeSet{{[]string{workerID}}}}
 		}
 	}
-
-	log.Printf("Updating ACL: %+v", e.ACL)
 
 	bs.spatial.UpdateComponent(e.ID, cidACL, e.ACL)
 }
@@ -274,6 +284,32 @@ func (bs *BalancerScene) OnFlagUpdate(op sos.FlagUpdateOp) {
 	}
 }
 
+func calcRequiredWorkers(c int) int {
+	// Was a fancy algoritm.  Instead simple switch
+	/*
+		// How many bits would it take to represent this number.
+		bLen := bits.Len(uint(numClients / 2))
+		// Square that to make it easy to lay out our workers.
+		pow := math.Pow(float64(bLen), 2)
+		log.Printf("Clients: %d bLen: %d Pow: %f", numClients, bLen, pow)
+		if pow < 1 {
+			pow = 1
+		}
+		return int(pow)
+	*/
+
+	switch {
+	case c < 4:
+		return 1
+	case c < 8:
+		return 4
+	case c < 32:
+		return 9
+	default:
+		return 16
+	}
+}
+
 func (bs *BalancerScene) updateWorkerProcesses() {
 	var numWorkers int
 	for _, w := range bs.Workers {
@@ -283,8 +319,8 @@ func (bs *BalancerScene) updateWorkerProcesses() {
 	}
 	numClients := len(bs.Clients)
 
-	reqWorkers := int(math.Pow(float64(bits.Len(uint(numClients))/2), 2))
-	if reqWorkers <= 1 {
+	reqWorkers := calcRequiredWorkers(numClients)
+	if reqWorkers < 1 {
 		reqWorkers++
 	}
 

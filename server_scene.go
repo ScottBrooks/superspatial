@@ -118,7 +118,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 	engo.Mailbox.Listen(CircleCollisionMessage{}.Type(), func(msg engo.Message) {
 		collision, ok := msg.(CircleCollisionMessage)
 		if ok {
-			log.Printf("Collision: %+v %+v %+v", collision, collision.A.SpaceComponent, collision.B.SpaceComponent)
+			//log.Printf("Collision: %+v %+v %+v", collision, collision.A.SpaceComponent, collision.B.SpaceComponent)
 			shipA, foundShipA := ss.ECS[collision.A.ID()].(*Ship)
 			shipB, foundShipB := ss.ECS[collision.B.ID()].(*Ship)
 
@@ -128,7 +128,7 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 				if delta > 64 {
 					return
 				}
-				log.Printf("---------- %d HIT %d --------: %+v", collision.A.ID(), collision.B.ID(), delta)
+				//log.Printf("---------- %d HIT %d --------: %+v", collision.A.ID(), collision.B.ID(), delta)
 
 				vAngleA := mgl32.RadToDeg(float32(math.Atan2(float64(shipA.Ship.Vel[1]), float64(shipA.Ship.Vel[0]))))
 				vAngleB := mgl32.RadToDeg(float32(math.Atan2(float64(shipB.Ship.Vel[1]), float64(shipB.Ship.Vel[0]))))
@@ -145,8 +145,8 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 				attackA := (30 - dA) * shipA.Ship.Vel.Len()
 				attackB := (30 - dB) * shipB.Ship.Vel.Len()
-				log.Printf("A: Angle: %f VAngle: %f Delta: %v AttackA: %f", shipA.Ship.Angle, vAngleA, dA, attackA)
-				log.Printf("B: Angle: %f VAngle: %f Delta: %v AttackB: %f", shipB.Ship.Angle, vAngleB, dB, attackB)
+				//log.Printf("A: Angle: %f VAngle: %f Delta: %v AttackA: %f", shipA.Ship.Angle, vAngleA, dA, attackA)
+				//log.Printf("B: Angle: %f VAngle: %f Delta: %v AttackB: %f", shipB.Ship.Angle, vAngleB, dB, attackB)
 
 				var deadShip *Ship
 				if attackB < attackA { // A attacks B
@@ -158,11 +158,11 @@ func (ss *ServerScene) Setup(u engo.Updater) {
 
 				if deadShip != nil {
 
-					log.Printf("Ship: %+v, Target: %+v ", shipA.SpaceComponent.Position, shipB.SpaceComponent.Position)
+					//log.Printf("Ship: %+v, Target: %+v ", shipA.SpaceComponent.Position, shipB.SpaceComponent.Position)
 					w.RemoveEntity(deadShip.BasicEntity)
 					engo.Mailbox.Dispatch(DeleteEntityMessage{ID: deadShip.ID})
 
-					log.Printf("Ship hit ship: %+v", deadShip)
+					//log.Printf("Ship hit ship: %+v", deadShip)
 					ss.NewEffect(deadShip.Ship.Pos, 1, 1000)
 					delete(ss.ECS, deadShip.BasicEntity.ID())
 				}
@@ -232,7 +232,6 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 	log.Debugf("OnAddComponent: %+v %+v", op, op.Component)
 	switch c := op.Component.(type) {
 	case *ShipComponent:
-		log.Printf("Making a new ship")
 		ent := NewShip(mgl32.Vec2{}, "")
 		ent.ID = op.ID
 		ss.Entities[op.ID] = &ent
@@ -242,7 +241,6 @@ func (ss *ServerScene) OnAddComponent(op sos.AddComponentOp) {
 		go func() {
 			time.Sleep(time.Duration(c.Expiry) * time.Millisecond)
 
-			log.Printf("Deleting the effect after expiry")
 			engo.Mailbox.Dispatch(DeleteEntityMessage{ID: op.ID})
 
 		}()
@@ -280,7 +278,6 @@ func (ss *ServerScene) OnAuthorityChange(op sos.AuthorityChangeOp) {
 			}
 		}
 	case cidShip:
-		log.Printf("Authority change for ship: %+v", op)
 		e := ss.Entities[op.ID]
 		s, ok := e.(*Ship)
 		if ok {
