@@ -129,12 +129,13 @@ func (bs *BalancerScene) OnAddComponent(op sos.AddComponentOp) {
 }
 
 func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
-	client, ok := bs.Clients[op.ID]
-	if ok {
-		delete(bs.Clients, op.ID)
-	}
 
 	if op.CID == cidWorker {
+		client, ok := bs.Clients[op.ID]
+		if ok {
+			delete(bs.Clients, op.ID)
+		}
+
 		toDelete := -1
 		for i, w := range bs.Workers {
 			if w.WorkerEntityID == op.ID {
@@ -149,12 +150,18 @@ func (bs *BalancerScene) OnRemoveComponent(op sos.RemoveComponentOp) {
 		bs.updateWorkerProcesses()
 
 		// When a worker(client in this case) disconnects, try to find any of their entities and delete those.
-		if client != "" {
+		log.Printf("Searching for player inputs that client %s can write to", client)
 
-			for _, e := range bs.Entities {
-				if e.Client == client {
-					log.Printf("Gonna delete entity: %+v", e)
-					bs.spatial.Delete(e.ID)
+		for _, e := range bs.Entities {
+			acl := e.ACL.ComponentWriteAcl[cidPlayerInput]
+			for _, as := range acl.AttributeSet {
+				for _, a := range as.Attribute {
+					if a == "workerId:"+client {
+
+						log.Printf("Gonna delete entity: %+v", e)
+						bs.spatial.Delete(e.ID)
+
+					}
 				}
 			}
 		}
@@ -368,20 +375,25 @@ func (bs *BalancerScene) stopWorker() {
 		log.Printf("No workers to stop")
 		return
 	}
+	for idx, w := range bs.Workers {
+		if !w.Killing {
+			bs.Workers[idx].Killing = true
+			proc := w.Process
+			if proc == nil {
+				log.Printf("Proc is nil for worker: %v", w)
+			}
+			log.Printf("Killing worker: %+v", proc)
+			err := proc.Kill()
+			if err != nil {
+				log.Printf("error stoping worker: %+v", err)
+				return
+			}
+			p, err := proc.Wait()
+			log.Printf("P: %+v Err: %+v", p, err)
 
-	bs.Workers[0].Killing = true
-	proc := bs.Workers[0].Process
-	if proc == nil {
-		log.Printf("Proc is nil for worker: %v", bs.Workers[0])
+		}
 	}
-	log.Printf("Killing worker: %+v", proc)
-	err := proc.Kill()
-	if err != nil {
-		log.Printf("error stoping worker: %+v", err)
-		return
-	}
-	p, err := proc.Wait()
-	log.Printf("P: %+v Err: %+v", p, err)
+
 }
 
 func (bs *BalancerScene) startBot() {
