@@ -1,3 +1,5 @@
 /client
 /server
 libimprobable_worker.so
+*.exe
+improbable_worker.dll
